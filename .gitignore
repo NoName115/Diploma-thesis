@@ -3,6 +3,7 @@ data/
 *.pth
 token.txt
 model.pth
+output_models/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
