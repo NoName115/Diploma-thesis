@@ -67,7 +67,7 @@ def train(
         embedding_output_size=model_config["model"]["embedding_input_size"],
         num_classes=len(LABELS),
         device=device
-    )
+    ).to(device)
     # load model parameters if model already exist
     if model_folder and not retrain:
         with open(os.path.join(model_folder, CHECKPOINT_FILE_NAME), "r") as lf:
