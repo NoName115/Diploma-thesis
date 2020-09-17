@@ -21,7 +21,8 @@ def train(
     max_epochs: int,
     output_folder: str,
     model_folder: Optional[str],
-    retrain: bool
+    retrain: bool,
+    additional_log_folder_name: str
 ):
     # initialize starting parameters
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,8 +30,6 @@ def train(
 
     start_epoch = 0
     end_epoch = max_epochs
-
-    # TODO - print info about loading model and etc...
 
     if model_folder:
         assert os.path.exists(model_folder), "Model folder doesn't exist"
@@ -43,6 +42,8 @@ def train(
             output_folder,
             datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
         )
+        if additional_log_folder_name:
+            log_folder += "_" + additional_log_folder_name
 
     print("-" * 8 + " CONFIGURATION " + "-" * 8)
     print(yaml.dump(model_config))
@@ -117,7 +118,7 @@ def train(
                 iteration_loss = 0.0
 
                 board_writer.add_scalar(
-                    "Train/Average_Loss",
+                    "Overall/Average_Loss",
                     average_loss,
                     (epoch * len(train_loader)) + i
                 )
@@ -222,7 +223,7 @@ def report_evaluation(
 
     # AP - score
     tb_writer.add_scalar(
-        f"Test/AP",
+        f"Overall/AP",
         ap_score,
         epoch
     )
@@ -238,6 +239,7 @@ if __name__ == "__main__":
     parser.add_argument("--test-data", "-T", help="Folder with testing data", required=True)
     parser.add_argument("--epochs", "-e", help="Number of maximum epochs for training", required=True)
     parser.add_argument("--config", "-c", help="Configuration file for model training, ignored if argument --model is set", required=True)
+    parser.add_argument("--name", "-n", help="Additional name to the log folder", default="")
 
     parser.add_argument("--model", "-m", help="Folder with pre-trained model", default=None)
     parser.add_argument("--retrain", "-r", help="If other than 0, will train model from the beginning", default=0, type=int)
@@ -252,5 +254,6 @@ if __name__ == "__main__":
         int(args.epochs),
         args.output,
         args.model,
-        args.retrain != 0
+        args.retrain != 0,
+        args.name
     )
