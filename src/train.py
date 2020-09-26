@@ -2,16 +2,15 @@ import argparse
 import torch
 import time
 import os
-import yaml
 from torch import nn
 from typing import Optional, Dict, List, Tuple
 from datetime import datetime
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from src.loader import IterableMovementDataset, load_config_file
-from src.model import BiRNN, save_model
-from src.constants import LABELS, CONFIG_FILE_NAME, CHECKPOINT_FILE_NAME
+from src.loader import IterableMovementDataset, load_config_file, load_model, create_model
+from src.model import save_model
+from src.common import get_device
 
 
 def train(
@@ -25,17 +24,19 @@ def train(
     additional_log_folder_name: str
 ):
     # initialize starting parameters
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = get_device()
     print(f"Training on: {device}")
 
     start_epoch = 0
     end_epoch = max_epochs
 
+    # load model parameters and model configuration
     if model_folder:
         assert os.path.exists(model_folder), "Model folder doesn't exist"
-        model_config = load_config_file(os.path.join(model_folder, CONFIG_FILE_NAME))
+        model, start_epoch, model_config = load_model(model_folder)
         log_folder = model_folder
-        print(f"Model loaded from {model_folder}")
+        if retrain:
+            model = create_model(model_config)
     else:
         model_config = load_config_file(config_file)
         log_folder = os.path.join(
@@ -45,8 +46,18 @@ def train(
         if additional_log_folder_name:
             log_folder += "_" + additional_log_folder_name
 
-    print("-" * 8 + " CONFIGURATION " + "-" * 8)
-    print(yaml.dump(model_config))
+        model = create_model(model_config)
+
+    # initialize training
+    print(f"Log directory for training: {log_folder}")
+    board_writer = SummaryWriter(log_dir=log_folder)
+
+    criterion = nn.BCELoss()
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=model_config["train"]["learning_rate"],
+        weight_decay=model_config["train"]["l2_weight_decay"]
+    )
 
     # load training & testing data
     train_loader = DataLoader(
@@ -56,31 +67,6 @@ def train(
     test_loader = DataLoader(
         IterableMovementDataset(test_folder),
         batch_size=model_config["train"]["batch_size"]
-    )
-
-    # initialize training
-    print(f"Log directory for training: {log_folder}")
-    board_writer = SummaryWriter(log_dir=log_folder)
-
-    model = BiRNN(
-        input_size=model_config["model"]["input_size"],
-        lstm_hidden_size=model_config["model"]["hidden_size"],
-        embedding_output_size=model_config["model"]["embedding_input_size"],
-        num_classes=len(LABELS),
-        device=device
-    ).to(device)
-    # load model parameters if model already exist
-    if model_folder and not retrain:
-        with open(os.path.join(model_folder, CHECKPOINT_FILE_NAME), "r") as lf:
-            last_model_file, model_epoch = lf.read().split('\n')
-        model.load_state_dict(torch.load(os.path.join(model_folder, last_model_file)))
-        start_epoch = int(model_epoch)
-
-    criterion = nn.BCELoss()
-    optimizer = torch.optim.Adam(
-        model.parameters(),
-        lr=model_config["train"]["learning_rate"],
-        weight_decay=model_config["train"]["l2_weight_decay"]
     )
 
     # train the model

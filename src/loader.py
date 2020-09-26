@@ -2,10 +2,12 @@ import os
 import torch
 import yaml
 import numpy as np
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from torch.utils.data import IterableDataset
 
-from src.constants import LABELS
+from src.constants import LABELS, CHECKPOINT_FILE_NAME, CONFIG_FILE_NAME
+from src.model import BiRNN
+from src.common import get_device
 
 
 class IterableMovementDataset(IterableDataset):
@@ -63,4 +65,37 @@ class IterableMovementDataset(IterableDataset):
 
 def load_config_file(config_file: str) -> Dict:
     with open(config_file, "r") as cf:
-        return yaml.load(cf)
+        raw_data = cf.read()
+
+    print("-" * 8 + " CONFIGURATION " + "-" * 8)
+    print(raw_data)
+
+    return yaml.load(raw_data)
+
+
+def create_model(model_config: Dict) -> BiRNN:
+    device = get_device()
+    return BiRNN(
+        input_size=model_config["model"]["input_size"],
+        lstm_hidden_size=model_config["model"]["hidden_size"],
+        embedding_output_size=model_config["model"]["embedding_input_size"],
+        num_classes=len(LABELS),
+        device=device
+    ).to(device)
+
+
+def load_model(model_folder: str) -> Tuple[BiRNN, int, Dict]:
+    print(f"Loading model from {model_folder}")
+
+    with open(os.path.join(model_folder, CHECKPOINT_FILE_NAME), "r") as lf:
+        last_model_file, model_epoch = lf.read().split('\n')
+    config_file = load_config_file(os.path.join(model_folder, CONFIG_FILE_NAME))
+
+    pytorch_model = create_model(config_file)
+    pytorch_model.load_state_dict(
+        torch.load(
+            os.path.join(model_folder, last_model_file),
+            map_location=get_device()
+        )
+    )
+    return pytorch_model, int(model_epoch), config_file
