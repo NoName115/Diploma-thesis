@@ -4,6 +4,9 @@ CONFIG_FILE_NAME = "config_model.yaml"
 MODEL_FINAL_FILE_NAME = "model_final.pth"
 CHECKPOINT_FILE_NAME = "last_checkpoint"
 
+NUMBER_OF_JOINTS = 25
+NUMBER_OF_AXES = 3
+
 LABELS = {
     1: 0,
     2: 1,

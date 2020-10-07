@@ -4,6 +4,7 @@ data/
 token.txt
 model.pth
 output_models/
+sandbox/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

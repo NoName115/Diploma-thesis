@@ -8,14 +8,14 @@ from datetime import datetime
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from src.loader import IterableMovementDataset, load_config_file, load_model, create_model
+from src.loader import ActionDataset, load_config_file, load_model, create_model
 from src.model import save_model
 from src.common import get_device
 
 
 def train(
-    train_folder: str,
-    test_folder: str,
+    data_file: str,
+    meta_file: str,
     config_file: str,
     max_epochs: int,
     output_folder: str,
@@ -48,6 +48,9 @@ def train(
 
         model = create_model(model_config)
 
+    # set model into training mode
+    model.train()
+
     # initialize training
     print(f"Log directory for training: {log_folder}")
     board_writer = SummaryWriter(log_dir=log_folder)
@@ -61,11 +64,11 @@ def train(
 
     # load training & testing data
     train_loader = DataLoader(
-        IterableMovementDataset(train_folder),
+        ActionDataset(data_file, meta_file, train_mode=True),
         batch_size=model_config["train"]["batch_size"]
     )
     test_loader = DataLoader(
-        IterableMovementDataset(test_folder),
+        ActionDataset(data_file, meta_file, train_mode=False),
         batch_size=model_config["train"]["batch_size"]
     )
 
@@ -138,9 +141,12 @@ def model_evaluation(
     device,
     epoch: int
 ):
+    # TODO
     print("-" * 6 + " EVALUATION " + "-" * 6)
 
     with torch.no_grad():
+        trained_model.eval()
+
         eval_dict = {
             "correct": 0,
             "above": 0,
@@ -221,8 +227,8 @@ if __name__ == "__main__":
     # TODO check paths to folders & files
 
     parser = argparse.ArgumentParser(description="Script for training the model")
-    parser.add_argument("--train-data", "-t", help="Folder with training data", required=True)
-    parser.add_argument("--test-data", "-T", help="Folder with testing data", required=True)
+    parser.add_argument("--data", "-d", help="File with all input data", required=True)
+    parser.add_argument("--meta", "-m", help="Meta data for training/validation split", required=True)
     parser.add_argument("--epochs", "-e", help="Number of maximum epochs for training", required=True)
     parser.add_argument("--config", "-c", help="Configuration file for model training, ignored if argument --model is set", required=True)
     parser.add_argument("--name", "-n", help="Additional name to the log folder", default="")
@@ -234,8 +240,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     train(
-        args.train_data,
-        args.test_data,
+        args.data,
+        args.meta,
         args.config,
         int(args.epochs),
         args.output,
