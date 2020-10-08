@@ -2,19 +2,22 @@ import argparse
 import torch
 import time
 import os
+import json
 from torch import nn
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict
 from datetime import datetime
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from src.loader import ActionDataset, load_config_file, load_model, create_model
-from src.model import save_model
+from src import evaluation, constants
+from src.loader import ActionDataset, SequenceDataset, load_config_file, load_model, create_model
+from src.model import save_model, BiRNN
 from src.common import get_device
 
 
 def train(
-    data_file: str,
+    action_file: str,
+    sequence_file: str,
     meta_file: str,
     config_file: str,
     max_epochs: int,
@@ -64,12 +67,16 @@ def train(
 
     # load training & testing data
     train_loader = DataLoader(
-        ActionDataset(data_file, meta_file, train_mode=True),
+        ActionDataset(action_file, meta_file, train_mode=True),
         batch_size=model_config["train"]["batch_size"]
     )
-    test_loader = DataLoader(
-        ActionDataset(data_file, meta_file, train_mode=False),
+    action_loader = DataLoader(
+        ActionDataset(action_file, meta_file, train_mode=False),
         batch_size=model_config["train"]["batch_size"]
+    )
+    sequence_loader = DataLoader(
+        SequenceDataset(sequence_file, meta_file, train_mode=False),
+        batch_size=1
     )
 
     # train the model
@@ -107,7 +114,7 @@ def train(
                 iteration_loss = 0.0
 
                 board_writer.add_scalar(
-                    "Overall/Average_Loss",
+                    "Overall/Iteration_Loss",
                     average_loss,
                     (epoch * len(train_loader)) + i
                 )
@@ -115,135 +122,132 @@ def train(
         # TODO - check 'i' a len(train_loader) pri vacsom batchi
         print(f"Epoch time: {int(time.time() - s_time)}s. total_loss: {round(epoch_loss / len(train_loader), 6)}")
 
+        board_writer.add_scalar(
+            "Overall/Epoch_Loss",
+            round(epoch_loss / len(train_loader), 6),
+            epoch
+        )
+
         if epoch % model_config['train']['save_step'] == 0:
             save_model(model_config, log_folder, model, epoch, final_mode=False)
 
         # Model evaluation
         if epoch % model_config["train"]["evaluation_step"] == 0:
-            model_evaluation(
+            sequence_evaluation(
                 configuration=model_config,
                 tb_writer=board_writer,
-                evaluation_loader=test_loader,
+                evaluation_loader=action_loader,
                 trained_model=model,
-                device=device,
+                epoch=epoch
+            )
+            action_evaluation(
+                configuration=model_config,
+                tb_writer=board_writer,
+                evaluation_loader=action_loader,
+                trained_model=model,
                 epoch=epoch
             )
 
     # save final_model
     save_model(model_config, log_folder, model, end_epoch, final_mode=True)
 
+    # report final data into tensorboard
+    evaluation.report_cumulative_data(
+        os.path.join(log_folder, constants.METRICS_FILE_NAME), log_folder
+    )
 
-def model_evaluation(
+
+def sequence_evaluation(
     configuration: Dict,
     tb_writer: SummaryWriter,
     evaluation_loader: DataLoader,
-    trained_model,
-    device,
-    epoch: int
-):
-    # TODO
-    print("-" * 6 + " EVALUATION " + "-" * 6)
-
-    with torch.no_grad():
-        trained_model.eval()
-
-        eval_dict = {
-            "correct": 0,
-            "above": 0,
-        }
-        thresholds = [(
-            round((1 / configuration['evaluation']['threshold_steps']) * (i + 1), 4),
-            eval_dict.copy()
-        ) for i in range(configuration['evaluation']['threshold_steps'])]
-
-        for i, (sequence, labels) in enumerate(evaluation_loader, 1):
-            sequence = sequence.view(sequence.size(0), sequence.size(1), -1).to(device)
-            target_label = torch.argmax(labels).item()
-
-            outputs = trained_model(sequence)
-
-            for val_th, res_dict in thresholds:
-                res_dict["above"] += (outputs.data > val_th).sum().item()
-
-                for _, label_indx in zip(*torch.where(outputs.data > val_th)):
-                    if label_indx == target_label:
-                        res_dict["correct"] += 1
-
-            if i % configuration['evaluation']['report_step'] == 0:
-                print(f"\tProcessed: [{i}/{len(evaluation_loader)}]")
-
-    report_evaluation(thresholds, len(evaluation_loader), epoch, tb_writer)
-
-
-def report_evaluation(
-    result_thresholds: List[Tuple[float, Dict]],
-    total_records: int,
+    trained_model: BiRNN,
     epoch: int,
-    tb_writer: SummaryWriter
 ):
-    # Calculate results & report them into tensorboard
-    ap_score = 0
-    old_recall = 0
-    for th, values in result_thresholds[:-1]:
-        recall = values["correct"] / total_records if values["correct"] > 0 else 0
-        precision = values["correct"] / values["above"] if values["above"] > 0 else 0
-        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+    res = evaluation.process_actions(
+        trained_model,
+        configuration,
+        evaluation_loader
+    )
 
+    for th, values in res["thresholds"].items():
         tb_writer.add_scalar(
             f"Precision/{th}",
-            precision,
+            values["precision"],
             epoch
         )
         tb_writer.add_scalar(
             f"Recall/{th}",
-            recall,
+            values["recall"],
             epoch
         )
         tb_writer.add_scalar(
             f"F1-score/{th}",
-            f1_score,
+            values["f1-score"],
             epoch
         )
-
-        print("[{:.2f}]".format(th) +
-              f"\n   Precision: {round(100 * precision, 4)}%"
-              f"\n   Recall: {round(100 * recall, 4)}%"
-              f"\n   f1_score: {round(f1_score, 4)}")
-
-        ap_score += ((abs(recall - old_recall)) * precision)
-        old_recall = recall
 
     # AP - score
     tb_writer.add_scalar(
         f"Overall/AP",
-        ap_score,
+        res["AP"],
         epoch
     )
 
-    print(f"[AP] {round(ap_score, 4)}")
+    res["epoch"] = epoch
+
+    # Save statistics into metrics.json file
+    with open(os.path.join(tb_writer.get_logdir(), constants.METRICS_FILE_NAME), 'a') as mf:
+        json.dump(res, mf)
+        mf.write('\n')
+
+
+def action_evaluation(
+    configuration: Dict,
+    tb_writer: SummaryWriter,
+    evaluation_loader: DataLoader,
+    trained_model: BiRNN,
+    epoch: int,
+):
+    total, correct = evaluation.evaluate_actions(
+        trained_model,
+        configuration,
+        evaluation_loader
+    )
+
+    tb_writer.add_scalar(
+        f"Overall/Accuracy",
+        round(correct / total, 6),
+        epoch
+    )
 
 
 if __name__ == "__main__":
-    # TODO check paths to folders & files
-
     parser = argparse.ArgumentParser(description="Script for training the model")
-    parser.add_argument("--data", "-d", help="File with all input data", required=True)
-    parser.add_argument("--meta", "-m", help="Meta data for training/validation split", required=True)
-    parser.add_argument("--epochs", "-e", help="Number of maximum epochs for training", required=True)
-    parser.add_argument("--config", "-c", help="Configuration file for model training, ignored if argument --model is set", required=True)
-    parser.add_argument("--name", "-n", help="Additional name to the log folder", default="")
+    parser.add_argument("--data", "-d", help="File with all input data", required=True, type=str)
+    parser.add_argument("--data-sequence", "-ds", help="File with sequences", type=str)
 
-    parser.add_argument("--model", "-m", help="Folder with pre-trained model", default=None)
-    parser.add_argument("--retrain", "-r", help="If other than 0, will train model from the beginning", default=0, type=int)
+    parser.add_argument("--meta", "-m", help="Meta data for training/validation split", required=True, type=str)
+    parser.add_argument("--epochs", "-e", help="Number of maximum epochs for training", required=True, type=int)
+    parser.add_argument("--name", "-n", help="Additional name to the log folder", default="", type=str)
 
-    parser.add_argument("--output", "-o", help="Output folder for model training", required=True)
+    parser.add_argument("--model", "-M", help="Folder with pre-trained model", type=str)
+    parser.add_argument("--config", "-c", help="Configuration file for model training", type=str)
+    parser.add_argument("--output", "-o", help="Output folder for model training", type=str)
+
+    parser.add_argument("--retrain", "-r", help="If other than 0, will train model from the beginning",
+                        default=0, type=int)
     args = parser.parse_args()
+
+    if not args.model and (not args.config or not args.output):
+        parser.error("Either --model or --config & --output arguments must be present")
 
     train(
         args.data,
+        args.data_sequence,
         args.meta,
         args.config,
-        int(args.epochs),
+        args.epochs,
         args.output,
         args.model,
         args.retrain != 0,

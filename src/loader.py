@@ -31,7 +31,7 @@ class SequenceDataset(IterableDataset):
                 seq_info = line.split(" ")[-1].split("_")
                 seq_id = seq_info[0]
                 seq_length = int(seq_info[-1])
-                next(file_reader)  # skip second line of header
+                _ = next(file_reader)  # skip second line of header
 
                 # skip Sequences with invalid ID
                 if seq_id not in self.valid_sequences:
@@ -49,8 +49,6 @@ class SequenceDataset(IterableDataset):
                 sequence = torch.from_numpy(sequence)
                 assert sequence.size() == (seq_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES)
                 yield sequence, seq_id
-
-
 
     def __iter__(self):
         return self.get_valid_sequence()
@@ -93,7 +91,7 @@ class ActionDataset(IterableDataset):
                 action_id = action_info[0]
                 action_length = int(action_info[-1])
                 action_label = int(action_info[1])
-                next(file_reader)  # skip second line of header
+                _ = next(file_reader)  # skip second line of header
 
                 if action_id not in self.valid_actions:
                     continue
@@ -147,7 +145,7 @@ def load_config_file(config_file: str) -> Dict:
     print("-" * 8 + " CONFIGURATION " + "-" * 8)
     print(raw_data)
 
-    return yaml.load(raw_data)
+    return yaml.safe_load(raw_data)
 
 
 def create_model(model_config: Dict) -> BiRNN:
