@@ -48,7 +48,7 @@ class SequenceDataset(IterableDataset):
                 sequence = np.array(sequence, dtype=np.float32)
                 sequence = torch.from_numpy(sequence)
                 assert sequence.size() == (seq_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES)
-                yield sequence, seq_id
+                yield sequence, None, seq_id
 
     def __iter__(self):
         return self.get_valid_sequence()
@@ -113,7 +113,7 @@ class ActionDataset(IterableDataset):
                 target = np.zeros(len(self.classes), dtype=np.float32)
                 target[label] = 1.0
 
-                yield action, target
+                yield action, target, action_id
 
     def __iter__(self):
         return self.get_valid_sequence()

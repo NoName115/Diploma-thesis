@@ -151,11 +151,6 @@ def train(
     # save final_model
     save_model(model_config, log_folder, model, end_epoch, final_mode=True)
 
-    # report final data into tensorboard
-    evaluation.report_cumulative_data(
-        os.path.join(log_folder, constants.METRICS_FILE_NAME), log_folder
-    )
-
 
 def sequence_evaluation(
     configuration: Dict,
@@ -164,7 +159,7 @@ def sequence_evaluation(
     trained_model: BiRNN,
     epoch: int,
 ):
-    res = evaluation.process_actions(
+    res = evaluation.evaluate_sequences(
         trained_model,
         configuration,
         evaluation_loader
@@ -209,7 +204,7 @@ def action_evaluation(
     trained_model: BiRNN,
     epoch: int,
 ):
-    total, correct = evaluation.evaluate_actions(
+    correct, total = evaluation.evaluate_actions(
         trained_model,
         configuration,
         evaluation_loader
