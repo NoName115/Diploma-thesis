@@ -37,12 +37,19 @@ class IterFrame:
         return self.number_of_steps
 
 
-def evaluate_sequences(trained_model: BiRNN, model_config: Dict, evaluation_loader: DataLoader) -> Dict:
+def evaluate_sequences(
+    trained_model: BiRNN,
+    model_config: Dict,
+    sequence_loader: DataLoader,
+    action_dataset: ActionDataset
+) -> Dict:
     print("-" * 6 + " SEQUENCE EVALUATION " + "-" * 6)
     device = get_device()
     trained_model.eval()
 
     with torch.no_grad():
+
+        action_dataset.initialize_action_info()
         eval_dict = {
             "correct": 0,
             "above": 0
@@ -53,10 +60,8 @@ def evaluate_sequences(trained_model: BiRNN, model_config: Dict, evaluation_load
         ) for i in range(model_config['evaluation']['threshold_steps'])]
 
         number_of_frames = 0
-        for i, (sequence, labels, seq_id) in enumerate(evaluation_loader, 1):
-            print(f"-> Sequence: {seq_id[0]} [{i}/{len(evaluation_loader)}] frames {len(sequence[0])}")
-
-            target_label = torch.argmax(labels).item() if len(labels) != 0 else None
+        for i, (sequence, _, seq_id) in enumerate(sequence_loader, 1):
+            print(f"-> Sequence: {seq_id[0]} [{i}/{len(sequence_loader)}] frames {len(sequence[0])}")
 
             frame_iter = IterFrame(
                 sequence[0],  # [0] as we are processing batch=1
@@ -67,6 +72,20 @@ def evaluate_sequences(trained_model: BiRNN, model_config: Dict, evaluation_load
             for j, frame in enumerate(frame_iter, 1):
                 torch_frame = frame.view(1, frame.size(0), -1).to(device)  # type: ignore
                 outputs = trained_model(torch_frame)
+
+                # Only valid frames
+                frame_idx = (j - 1) * model_config['evaluation']['batch_size']
+                res = action_dataset.get_labels_by_sequence(
+                    seq_id[0],
+                    frame_idx,
+                    model_config['evaluation']['batch_size']
+                )
+                print(res)
+                continue
+                if not res:
+                    continue
+                else:
+                    exit()
 
                 for val_th, res_dict in thresholds:
                     res_dict["above"] += (outputs.data > val_th).sum().item()
@@ -154,17 +173,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script for evaluating trained model")
     parser.add_argument("--model", "-m", help="Folder with trained model", required=True)
     parser.add_argument("--meta", "-M", help="Meta data for CS/CV datasets", required=True)
+    parser.add_argument("--data-actions", "-da", help="File with data for action evaluation", required=True)
+    parser.add_argument("--data-sequences", "-ds", help="File with data for sequence evaluation")
 
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--data-actions", "-da", help="File with data for action evaluation")
-    group.add_argument("--data-sequences", "-ds", help="File with data for sequence evaluation")
-    group.add_argument("--data-act-seq", "-D", help="File with actions for sequence evaluation")
     args = parser.parse_args()
 
     # load model & configuration
     trained_model, _, model_config = load_model(args.model)
 
-    if args.data_actions:
+    if args.data_actions and not args.data_sequences:
         evaluate_actions(
             trained_model,
             model_config,
@@ -174,22 +191,13 @@ if __name__ == "__main__":
             )
         )
 
-    if args.data_sequences:
+    if args.data_sequences and args.data_actions:
         evaluate_sequences(
             trained_model,
             model_config,
             DataLoader(
                 SequenceDataset(args.data_sequences, args.meta, train_mode=False),
                 batch_size=1
-            )
-        )
-
-    if args.data_act_seq:
-        evaluate_sequences(
-            trained_model,
-            model_config,
-            DataLoader(
-                ActionDataset(args.data_act_seq, args.meta, train_mode=False),
-                batch_size=1
-            )
+            ),
+            ActionDataset(args.data_actions, args.meta, train_mode=False)
         )

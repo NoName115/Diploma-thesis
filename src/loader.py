@@ -69,6 +69,7 @@ class ActionDataset(IterableDataset):
         self.classes = LABELS
 
         self.dataset_length = self.initialize_dataset_length()
+        self.actions_info = {}
 
     def initialize_dataset_length(self):
         counter = 0
@@ -80,7 +81,43 @@ class ActionDataset(IterableDataset):
                     counter += 1
         return counter
 
-    def get_valid_sequence(self):
+    def initialize_action_info(self):
+        for _, label, action_info in self.get_valid_sequence(skip_action=True):
+            self.actions_info.setdefault(action_info[0], []).append(
+                (
+                    int(action_info[-2]),
+                    int(action_info[-1]),
+                    np.argmax(label)
+                )
+            )
+
+    def get_labels_by_sequence(
+        self,
+        sequence_name: str,
+        start_idx: int,
+        seq_length: int
+    ):
+        # TODO - preload action infos
+        if sequence_name not in self.valid_actions:
+            raise ValueError(f"Invalid sequence name to process {sequence_name}")
+
+        print(f"I: {sequence_name}, {start_idx}, {seq_length}")
+
+        actions = []
+        for action_start_idx, action_length, target_label in self.actions_info[sequence_name]:
+            if not ((start_idx + seq_length) > action_start_idx and
+                    (action_start_idx + action_length) > start_idx):
+                continue
+
+            actions.append((
+                max(start_idx, action_start_idx),
+                min(start_idx + seq_length, action_start_idx + action_length),
+                target_label
+            ))
+
+        return actions
+
+    def get_valid_sequence(self, skip_action: bool = False):
         file_reader = read_file(self.action_file)
         for line in file_reader:
             if line.find("#objectKey") != -1:
@@ -96,24 +133,27 @@ class ActionDataset(IterableDataset):
                 if action_id not in self.valid_actions:
                     continue
 
-                action = []
-                for _ in range(action_length):
-                    line = next(file_reader)
-                    action.append(
-                        [triple.split(", ") for triple in line.split("; ")]
-                    )
-
-                # convert action into tensor
-                action = np.array(action, dtype=np.float32)
-                action = torch.from_numpy(action)
-                assert action.size() == (action_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES)
-
                 # get label as spare vector
                 label = self.classes[action_label]
                 target = np.zeros(len(self.classes), dtype=np.float32)
                 target[label] = 1.0
 
-                yield action, target, action_id
+                if not skip_action:
+                    action = []
+                    for _ in range(action_length):
+                        line = next(file_reader)
+                        action.append(
+                            [triple.split(", ") for triple in line.split("; ")]
+                        )
+
+                    # convert action into tensor
+                    action = np.array(action, dtype=np.float32)
+                    action = torch.from_numpy(action)
+                    assert action.size() == (action_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES)
+
+                    yield action, target, action_info
+                else:
+                    yield [], target, action_info
 
     def __iter__(self):
         return self.get_valid_sequence()
