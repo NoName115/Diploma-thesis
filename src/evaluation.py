@@ -8,6 +8,35 @@ from src.loader import load_model, ActionDataset, SequenceDataset
 from src.common import get_device
 
 
+class IterFrame:
+
+    def __init__(
+        self,
+        one_sequence,
+        batch_size: int
+    ):
+        self.sequence = one_sequence
+        self.bs = batch_size
+        self.iter_seq = iter(self.sequence)
+        self.number_of_steps = len(self.sequence) // self.bs
+        if len(self.sequence) % self.bs != 0:
+            self.number_of_steps += 1
+
+    def __iter__(self):
+        for i in range(self.number_of_steps):
+            tensor_list = []
+            for _ in range(self.bs):
+                try:
+                    tensor_list.append(next(self.iter_seq))
+                except StopIteration:
+                    break
+
+            yield torch.stack(tensor_list, 0)
+
+    def __len__(self) -> int:
+        return self.number_of_steps
+
+
 def evaluate_sequences(trained_model: BiRNN, model_config: Dict, evaluation_loader: DataLoader) -> Dict:
     print("-" * 6 + " SEQUENCE EVALUATION " + "-" * 6)
     device = get_device()
@@ -23,12 +52,20 @@ def evaluate_sequences(trained_model: BiRNN, model_config: Dict, evaluation_load
             eval_dict.copy()
         ) for i in range(model_config['evaluation']['threshold_steps'])]
 
+        number_of_frames = 0
         for i, (sequence, labels, seq_id) in enumerate(evaluation_loader, 1):
             print(f"-> Sequence: {seq_id[0]} [{i}/{len(evaluation_loader)}] frames {len(sequence[0])}")
 
-            target_label = torch.argmax(labels).item() if not labels is None else None
-            for j, frame in enumerate(sequence[0], 1):  # [0] as we are processing batch=1
-                torch_frame = frame.view(1, 1, -1).to(device)
+            target_label = torch.argmax(labels).item() if len(labels) != 0 else None
+
+            frame_iter = IterFrame(
+                sequence[0],  # [0] as we are processing batch=1
+                model_config['evaluation']['batch_size']
+            )
+            number_of_frames += len(frame_iter)
+
+            for j, frame in enumerate(frame_iter, 1):
+                torch_frame = frame.view(1, frame.size(0), -1).to(device)  # type: ignore
                 outputs = trained_model(torch_frame)
 
                 for val_th, res_dict in thresholds:
@@ -40,20 +77,7 @@ def evaluate_sequences(trained_model: BiRNN, model_config: Dict, evaluation_load
                 if j % model_config['evaluation']['report_step'] == 0:
                     print(f"\tProcessed frame: {j}/{len(sequence[0])}")
 
-                #print(torch.max(outputs.data).item())
-
-                """
-                _, label_idx = torch.where(outputs.data > 0.5)  # 0.24/0.25, videl som aj 0.28 ale tak raz
-                if len(label_idx) != 0:
-                    print(torch.argmax(outputs.data).item())
-                    max_value = torch.max(outputs.data).item()
-                    print(max_value)
-                    print("----------------------")
-
-                    if max_value > total_max:
-                        total_max = max_value
-                        print(f"---> MAX {total_max}")
-                """
+                #print(f"{torch.argmax(outputs.data).item()} - {round(torch.max(outputs.data).item(), 4)}")
 
     # Calculate final statistics
     result_dict = {
@@ -64,7 +88,7 @@ def evaluate_sequences(trained_model: BiRNN, model_config: Dict, evaluation_load
     ap_score = 0
     old_recall = 0
     for th, values in thresholds[:-1]:
-        recall = values["correct"] / len(evaluation_loader) if values["correct"] > 0 else 0
+        recall = values["correct"] / number_of_frames if values["correct"] > 0 else 0
         precision = values["correct"] / values["above"] if values["above"] > 0 else 0
         f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 

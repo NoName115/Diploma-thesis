@@ -48,7 +48,7 @@ class SequenceDataset(IterableDataset):
                 sequence = np.array(sequence, dtype=np.float32)
                 sequence = torch.from_numpy(sequence)
                 assert sequence.size() == (seq_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES)
-                yield sequence, None, seq_id
+                yield sequence, [], seq_id
 
     def __iter__(self):
         return self.get_valid_sequence()
