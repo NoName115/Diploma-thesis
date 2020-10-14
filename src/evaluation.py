@@ -86,14 +86,16 @@ def evaluate_sequences(
                 )
                 if not res:
                     continue
+                else:
+                    total_frames += sum((ei - si + 1) for si, ei, _ in res)
 
                 for th, result_dict in thresholds:
                     # whole batch is classified into several categories
                     result_dict["above"] += (outputs.data > th).sum().item() * number_of_frames
+
                     for _, label_idx in zip(*torch.where(outputs.data > th)):
                         # get labels into which the batch is classified
                         for s_idx, e_idx, target_label in res:
-                            total_frames += (e_idx - s_idx) + 1
                             # check whole batch of frames if they goes into correct category
                             if label_idx == target_label:
                                 result_dict["correct"] += (e_idx - s_idx) + 1
@@ -125,10 +127,9 @@ def evaluate_sequences(
             "f1-score": f1_score
         }
 
-        print(f"C: {values['correct']}, A: {values['above']}")
-
         print(
             "[{:.2f}]".format(th) +
+            f"\n   C: {values['correct']}, T: {total_frames}, A: {values['above']}"
             f"\n   Precision: {round(100 * precision, 4)}%"
             f"\n   Recall: {round(100 * recall, 4)}%"
             f"\n   f1_score: {round(f1_score, 4)}"
