@@ -22,6 +22,10 @@ class IterFrame:
         if len(self.sequence) % self.bs != 0:
             self.number_of_steps += 1
 
+    @property
+    def sequence_length(self) -> int:
+        return len(self.sequence)
+
     def __iter__(self):
         for i in range(self.number_of_steps):
             tensor_list = []
@@ -46,10 +50,9 @@ def evaluate_sequences(
     print("-" * 6 + " SEQUENCE EVALUATION " + "-" * 6)
     device = get_device()
     trained_model.eval()
+    action_dataset.initialize_action_info()
 
     with torch.no_grad():
-
-        action_dataset.initialize_action_info()
         eval_dict = {
             "correct": 0,
             "above": 0
@@ -59,7 +62,7 @@ def evaluate_sequences(
             eval_dict.copy()
         ) for i in range(model_config['evaluation']['threshold_steps'])]
 
-        number_of_frames = 0
+        total_frames = 0
         for i, (sequence, _, seq_id) in enumerate(sequence_loader, 1):
             print(f"-> Sequence: {seq_id[0]} [{i}/{len(sequence_loader)}] frames {len(sequence[0])}")
 
@@ -67,10 +70,11 @@ def evaluate_sequences(
                 sequence[0],  # [0] as we are processing batch=1
                 model_config['evaluation']['batch_size']
             )
-            number_of_frames += len(frame_iter)
+            #total_frames += frame_iter.sequence_length
 
             for j, frame in enumerate(frame_iter, 1):
-                torch_frame = frame.view(1, frame.size(0), -1).to(device)  # type: ignore
+                number_of_frames = frame.size(0)
+                torch_frame = frame.view(1, number_of_frames, -1).to(device)  # type: ignore
                 outputs = trained_model(torch_frame)
 
                 # Only valid frames
@@ -80,21 +84,22 @@ def evaluate_sequences(
                     frame_idx,
                     model_config['evaluation']['batch_size']
                 )
-                print(res)
-                continue
                 if not res:
                     continue
-                else:
-                    exit()
 
-                for val_th, res_dict in thresholds:
-                    res_dict["above"] += (outputs.data > val_th).sum().item()
-                    for _, label_idx in zip(*torch.where(outputs.data > val_th)):
-                        if label_idx == target_label:
-                            res_dict["correct"] += 1
+                for th, result_dict in thresholds:
+                    # whole batch is classified into several categories
+                    result_dict["above"] += (outputs.data > th).sum().item() * number_of_frames
+                    for _, label_idx in zip(*torch.where(outputs.data > th)):
+                        # get labels into which the batch is classified
+                        for s_idx, e_idx, target_label in res:
+                            total_frames += (e_idx - s_idx) + 1
+                            # check whole batch of frames if they goes into correct category
+                            if label_idx == target_label:
+                                result_dict["correct"] += (e_idx - s_idx) + 1
 
                 if j % model_config['evaluation']['report_step'] == 0:
-                    print(f"\tProcessed frame: {j}/{len(sequence[0])}")
+                    print(f"\tProcessed steps: {j}/{len(frame_iter)}")
 
                 #print(f"{torch.argmax(outputs.data).item()} - {round(torch.max(outputs.data).item(), 4)}")
 
@@ -107,7 +112,7 @@ def evaluate_sequences(
     ap_score = 0
     old_recall = 0
     for th, values in thresholds[:-1]:
-        recall = values["correct"] / number_of_frames if values["correct"] > 0 else 0
+        recall = values["correct"] / total_frames if values["correct"] > 0 else 0
         precision = values["correct"] / values["above"] if values["above"] > 0 else 0
         f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
@@ -119,6 +124,8 @@ def evaluate_sequences(
             "precision": precision,
             "f1-score": f1_score
         }
+
+        print(f"C: {values['correct']}, A: {values['above']}")
 
         print(
             "[{:.2f}]".format(th) +

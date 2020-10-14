@@ -101,7 +101,7 @@ class ActionDataset(IterableDataset):
         if sequence_name not in self.valid_actions:
             raise ValueError(f"Invalid sequence name to process {sequence_name}")
 
-        print(f"I: {sequence_name}, {start_idx}, {seq_length}")
+        #print(f"I: {sequence_name}, {start_idx}, {seq_length}")
 
         actions = []
         for action_start_idx, action_length, target_label in self.actions_info[sequence_name]:
