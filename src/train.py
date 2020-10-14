@@ -72,7 +72,7 @@ def train(
     )
     action_loader = DataLoader(
         ActionDataset(action_file, meta_file, train_mode=False),
-        batch_size=model_config["train"]["batch_size"]
+        batch_size=1
     )
     sequence_loader = DataLoader(
         SequenceDataset(sequence_file, meta_file, train_mode=False),
@@ -87,7 +87,7 @@ def train(
         epoch_loss = 0.0
         iteration_loss = 0.0
 
-        for i, (sequence, label) in enumerate(train_loader, 1):
+        for i, (sequence, label, _) in enumerate(train_loader, 1):
             sequence = sequence.view(sequence.size(0), sequence.size(1), -1).to(device)
             label = label.to(device)
 
@@ -136,7 +136,10 @@ def train(
             sequence_evaluation(
                 configuration=model_config,
                 tb_writer=board_writer,
-                evaluation_loader=action_loader,
+                evaluation_loader=sequence_loader,
+                action_dataset=ActionDataset(
+                    action_file, meta_file, train_mode=False
+                ),
                 trained_model=model,
                 epoch=epoch
             )
@@ -156,13 +159,15 @@ def sequence_evaluation(
     configuration: Dict,
     tb_writer: SummaryWriter,
     evaluation_loader: DataLoader,
+    action_dataset: ActionDataset,
     trained_model: BiRNN,
     epoch: int,
 ):
     res = evaluation.evaluate_sequences(
         trained_model,
         configuration,
-        evaluation_loader
+        evaluation_loader,
+        action_dataset
     )
 
     for th, values in res["thresholds"].items():

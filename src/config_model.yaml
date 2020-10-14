@@ -13,5 +13,5 @@ train:
 
 evaluation:
   threshold_steps: 10
-  report_step: 99
+  report_step: 25
   batch_size: 20
