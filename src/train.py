@@ -111,13 +111,12 @@ def train(
                     f"\t{i}/{len(train_loader)} - Epoch [{epoch}/{end_epoch}], "
                     f"avg_loss: {average_loss}"
                 )
-                iteration_loss = 0.0
-
                 board_writer.add_scalar(
                     "Overall/Iteration_Loss",
                     average_loss,
                     (epoch * len(train_loader)) + i
                 )
+                iteration_loss = 0.0
 
         # TODO - check 'i' a len(train_loader) pri vacsom batchi
         print(f"Epoch time: {int(time.time() - s_time)}s. total_loss: {round(epoch_loss / len(train_loader), 6)}")
@@ -128,6 +127,7 @@ def train(
             epoch
         )
 
+        # Save model
         if epoch % model_config['train']['save_step'] == 0:
             save_model(model_config, log_folder, model, epoch, final_mode=False)
 
@@ -150,6 +150,8 @@ def train(
                 trained_model=model,
                 epoch=epoch
             )
+            # set model back to training mode
+            model.train()
 
     # save final_model
     save_model(model_config, log_folder, model, end_epoch, final_mode=True)
@@ -224,8 +226,8 @@ def action_evaluation(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script for training the model")
-    parser.add_argument("--data", "-d", help="File with all input data", required=True, type=str)
-    parser.add_argument("--data-sequence", "-ds", help="File with sequences", type=str)
+    parser.add_argument("--data-actions", "-da", help="File with actions data", required=True, type=str)
+    parser.add_argument("--data-sequence", "-ds", help="File with sequences data", type=str)
 
     parser.add_argument("--meta", "-m", help="Meta data for training/validation split", required=True, type=str)
     parser.add_argument("--epochs", "-e", help="Number of maximum epochs for training", required=True, type=int)
@@ -243,7 +245,7 @@ if __name__ == "__main__":
         parser.error("Either --model or --config & --output arguments must be present")
 
     train(
-        args.data,
+        args.data_actions,
         args.data_sequence,
         args.meta,
         args.config,

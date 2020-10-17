@@ -70,7 +70,6 @@ def evaluate_sequences(
                 sequence[0],  # [0] as we are processing batch=1
                 model_config['evaluation']['batch_size']
             )
-            #total_frames += frame_iter.sequence_length
 
             for j, frame in enumerate(frame_iter, 1):
                 number_of_frames = frame.size(0)
@@ -158,9 +157,6 @@ def evaluate_actions(
             if i % model_config['evaluation']['report_step'] == 0:
                 print(f"\tProcessed: [{i}/{len(evaluation_loader)}]")
 
-            # TODO - https://github.com/pytorch/pytorch/issues/1538
-            #   - user transpose instead of view
-            #   - https://discuss.pytorch.org/t/different-between-permute-transpose-view-which-should-i-use/32916
             sequence = sequence.view(sequence.size(0), sequence.size(1), -1).to(device)
             target_label = torch.argmax(labels).item()
 

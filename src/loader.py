@@ -14,6 +14,8 @@ from src.common import get_device
 class SequenceDataset(IterableDataset):
 
     def __init__(self, sequence_file: str, meta_file: str, train_mode: bool = True, transforms=None):
+        assert sequence_file.find("sequences") != -1
+
         self.sequence_file = sequence_file
         self.meta_file = meta_file
         self.train_mode = train_mode
@@ -60,6 +62,8 @@ class SequenceDataset(IterableDataset):
 class ActionDataset(IterableDataset):
 
     def __init__(self, action_file: str, meta_file: str, train_mode: bool = True, transforms=None):
+        assert action_file.find("actions") != -1
+
         self.action_file = action_file
         self.meta_file = meta_file
         self.train_mode = train_mode
@@ -97,11 +101,8 @@ class ActionDataset(IterableDataset):
         start_idx: int,
         seq_length: int
     ):
-        # TODO - preload action infos
         if sequence_name not in self.valid_actions:
             raise ValueError(f"Invalid sequence name to process {sequence_name}")
-
-        #print(f"I: {sequence_name}, {start_idx}, {seq_length}")
 
         actions = []
         for action_start_idx, action_length, target_label in self.actions_info[sequence_name]:
