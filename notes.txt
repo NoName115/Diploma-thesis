@@ -1,0 +1,24 @@
+ - nechat frame 1, ale nechat context - nemazat pamet
+ 	- premazat pamat ked to zacne padat dole
+
+ - precision
+ 	- menovatel, vsetky ktore som oznacil nad threshold
+ - recall
+ 	- menovatel je ground-truth
+ 	
+ - spocitanie metriky pre vsetky kategorie
+ 	- meni sa mi menovatel podla kategorie, na konci mozem urobit sucet
+ 	- to je makro/mikro
+ 		- makro - priemner
+ 		- mikro - correct / above (vsetky)
+ 
+ - kde zacina sekvencia, od 0 alebo 1 ?
+ 
+ - rozdelit grafy - klasifikacia/detekcia
+ 
+ - klasifikacia --> CV - natrenovat
+	 - batch-size - na 40
+	 - jedno-smerna siet
+ 
+ - vytvorit testovaci dataset pre evaluaciu metrik
+ 
