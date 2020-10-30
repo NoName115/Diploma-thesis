@@ -49,7 +49,7 @@ def evaluate_sequences(
 ) -> Dict:
     print("-" * 6 + " SEQUENCE EVALUATION " + "-" * 6)
     device = get_device()
-    trained_model.eval()
+    trained_model.eval().enable_keep_short_memory()
     action_dataset.initialize_action_info()
 
     with torch.no_grad():
@@ -68,7 +68,7 @@ def evaluate_sequences(
 
             frame_iter = IterFrame(
                 sequence[0],  # [0] as we are processing batch=1
-                model_config['evaluation']['batch_size']
+                model_config['evaluation']['frame_size']
             )
 
             for j, frame in enumerate(frame_iter, 1):
@@ -77,11 +77,11 @@ def evaluate_sequences(
                 outputs = trained_model(torch_frame)
 
                 # Only valid frames
-                frame_idx = (j - 1) * model_config['evaluation']['batch_size']
+                frame_idx = (j - 1) * model_config['evaluation']['frame_size']
                 res = action_dataset.get_labels_by_sequence(
                     seq_id[0],
                     frame_idx,
-                    model_config['evaluation']['batch_size']
+                    model_config['evaluation']['frame_size']
                 )
                 if not res:
                     continue
@@ -147,7 +147,7 @@ def evaluate_actions(
 ) -> Tuple[int, int]:
     print("-" * 6 + " ACTION EVALUATION " + "-" * 6)
     device = get_device()
-    trained_model.eval()
+    trained_model.eval().disable_keep_short_memory()
 
     with torch.no_grad():
         correct = 0

@@ -195,8 +195,7 @@ def create_model(model_config: Dict) -> BiRNN:
         input_size=model_config["model"]["input_size"],
         lstm_hidden_size=model_config["model"]["hidden_size"],
         embedding_output_size=model_config["model"]["embedding_input_size"],
-        num_classes=len(LABELS),
-        device=device
+        num_classes=len(LABELS)
     ).to(device)
 
 
