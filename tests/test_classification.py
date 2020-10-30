@@ -1,18 +1,17 @@
 from unittest import TestCase
-
 from torch.utils.data import DataLoader
 
 from src.evaluation import evaluate_actions
 from src.loader import load_config_file, ActionDataset
 
 from tests import get_test_path
-from tests.mocked_model import MockedBiRNN
+from tests.mocked_model import MockedClassificationBiRNN
 
 
 class TestClassification(TestCase):
 
     def setUp(self) -> None:
-        self.model = MockedBiRNN(
+        self.model = MockedClassificationBiRNN(
             75,
             512,
             64

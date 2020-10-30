@@ -98,21 +98,23 @@ class ActionDataset(IterableDataset):
     def get_labels_by_sequence(
         self,
         sequence_name: str,
-        start_idx: int,
+        seq_start_idx: int,
         seq_length: int
-    ):
+    ) -> List[Tuple[int, int, int]]:
         if sequence_name not in self.valid_actions:
             raise ValueError(f"Invalid sequence name to process {sequence_name}")
 
+        seq_end_idx = seq_start_idx + seq_length - 1
+
         actions = []
         for action_start_idx, action_length, target_label in self.actions_info[sequence_name]:
-            if not ((start_idx + seq_length) > action_start_idx and
-                    (action_start_idx + action_length) > start_idx):
+            action_end_idx = action_start_idx + action_length - 1
+            if not (seq_end_idx >= action_start_idx and action_end_idx >= seq_start_idx):
                 continue
 
             actions.append((
-                max(start_idx, action_start_idx),
-                min(start_idx + seq_length, action_start_idx + action_length),
+                max(seq_start_idx, action_start_idx),
+                min(seq_end_idx, action_end_idx),
                 target_label
             ))
 

@@ -73,19 +73,23 @@ def evaluate_sequences(
 
             for j, frame in enumerate(frame_iter, 1):
                 number_of_frames = frame.size(0)
+
                 torch_frame = frame.view(1, number_of_frames, -1).to(device)  # type: ignore
                 outputs = trained_model(torch_frame)
 
+                assert outputs.size() == (1, 43)
+
                 # Only valid frames
-                frame_idx = (j - 1) * model_config['evaluation']['frame_size']
+                start_frame_idx = (j - 1) * model_config['evaluation']['frame_size'] + 1
                 res = action_dataset.get_labels_by_sequence(
-                    seq_id[0],
-                    frame_idx,
-                    model_config['evaluation']['frame_size']
+                    sequence_name=seq_id[0],
+                    seq_start_idx=start_frame_idx,
+                    seq_length=model_config['evaluation']['frame_size']
                 )
                 if not res:
                     continue
                 else:
+                    # index start from 1, to get length --> end_idx - start_idx + 1
                     total_frames += sum((ei - si + 1) for si, ei, _ in res)
 
                 for th, result_dict in thresholds:
@@ -107,7 +111,8 @@ def evaluate_sequences(
     # Calculate final statistics
     result_dict = {
         "thresholds": {},
-        "AP": 0.0
+        "AP": 0.0,
+        "total_frames": total_frames
     }
 
     ap_score = 0
@@ -123,7 +128,9 @@ def evaluate_sequences(
         result_dict["thresholds"][str(th)] = {
             "recall": recall,
             "precision": precision,
-            "f1-score": f1_score
+            "f1-score": f1_score,
+            "correct": values["correct"],
+            "above": values["above"]
         }
 
         print(
