@@ -14,4 +14,4 @@ train:
 evaluation:
   threshold_steps: 10
   report_step: 25
-  frame_size: 20
+  frame_size: 1

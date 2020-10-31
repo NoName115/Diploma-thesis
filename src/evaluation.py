@@ -45,11 +45,14 @@ def evaluate_sequences(
     trained_model: BiRNN,
     model_config: Dict,
     sequence_loader: DataLoader,
-    action_dataset: ActionDataset
+    action_dataset: ActionDataset,
+    keep_short_memory: bool
 ) -> Dict:
     print("-" * 6 + " SEQUENCE EVALUATION " + "-" * 6)
     device = get_device()
-    trained_model.eval().enable_keep_short_memory()
+    trained_model.eval()
+    if keep_short_memory:
+        trained_model.enable_keep_short_memory()
     action_dataset.initialize_action_info()
 
     with torch.no_grad():
@@ -186,6 +189,8 @@ if __name__ == "__main__":
     parser.add_argument("--meta", "-M", help="Meta data for CS/CV datasets", required=True)
     parser.add_argument("--data-actions", "-da", help="File with data for action evaluation", required=True)
     parser.add_argument("--data-sequences", "-ds", help="File with data for sequence evaluation")
+    parser.add_argument("--short-memory", "-sm", help="If set to True model will keep short memory",
+                        type=bool, default=False)
 
     args = parser.parse_args()
 
@@ -210,5 +215,6 @@ if __name__ == "__main__":
                 SequenceDataset(args.data_sequences, args.meta, train_mode=False),
                 batch_size=1
             ),
-            ActionDataset(args.data_actions, args.meta, train_mode=False)
+            ActionDataset(args.data_actions, args.meta, train_mode=False),
+            keep_short_memory=args.short_memory
         )

@@ -68,7 +68,8 @@ def train(
     # load training & testing data
     train_loader = DataLoader(
         ActionDataset(action_file, meta_file, train_mode=True),
-        batch_size=model_config["train"]["batch_size"]
+        batch_size=model_config["train"]["batch_size"],
+        collate_fn=None
     )
     action_loader = DataLoader(
         ActionDataset(action_file, meta_file, train_mode=False),
@@ -88,6 +89,15 @@ def train(
         iteration_loss = 0.0
 
         for i, (sequence, label, _) in enumerate(train_loader, 1):
+
+            #print(sequence.size())
+            #exit()
+
+            # TODO - batch-size
+            #   - https://pytorch.org/docs/stable/generated/torch.nn.utils.rnn.pack_padded_sequence.html
+            #   - https://discuss.pytorch.org/t/how-to-create-batches-of-a-list-of-varying-dimension-tensors/50773/17
+            #   - https://pytorch.org/docs/stable/_modules/torch/utils/data/dataloader.html#DataLoader
+
             sequence = sequence.view(sequence.size(0), sequence.size(1), -1).to(device)
             label = label.to(device)
 
@@ -169,7 +179,8 @@ def sequence_evaluation(
         trained_model,
         configuration,
         evaluation_loader,
-        action_dataset
+        action_dataset,
+        True
     )
 
     for th, values in res["thresholds"].items():
@@ -227,7 +238,7 @@ def action_evaluation(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script for training the model")
     parser.add_argument("--data-actions", "-da", help="File with actions data", required=True, type=str)
-    parser.add_argument("--data-sequence", "-ds", help="File with sequences data", type=str)
+    parser.add_argument("--data-sequence", "-ds", help="File with sequences data", required=True, type=str)
 
     parser.add_argument("--meta", "-m", help="Meta data for training/validation split", required=True, type=str)
     parser.add_argument("--epochs", "-e", help="Number of maximum epochs for training", required=True, type=int)

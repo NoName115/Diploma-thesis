@@ -171,4 +171,106 @@ class TestDetection(TestCase):
             self.assertEqual(194, data["above"])
             self.assertEqual(1.0, data["precision"])
 
-    # TODO - precision test pre 'above' > 194
+    def test_precision_above_frame_10(self):
+        self.model.set_predicted_labels(
+            [
+                [],  # 1 - 10
+                [(5, 1.0)],  # 11 - 20
+                [(5, 1.0)],  # 21 - 30
+                [(5, 1.0)],  # 31 - 40
+                [(5, 1.0)],  # 41 - 50
+                [(5, 1.0)],  # 51 - 60
+                [],  # 61 - 70
+                [],  # 71 - 80
+                [(11, 1.0)],  # 81 - 90
+                [(11, 1.0)],  # 91 - 100
+                [(11, 1.0)],  # 101 - 110
+                [],  # 111 - 120
+                [(1, 1.0)],  # 121 - 130
+                [(1, 1.0)],  # 131 - 140
+                [(1, 1.0)],  # 141 - 150
+                [(1, 1.0)],  # 151 - 160
+                [],  # 161 - 170
+                [],  # 171 - 180
+                [],  # 181 - 190
+                [(32, 1.0)],  # 191 - 200
+                [(32, 1.0)],  # 201 - 210
+                [(32, 1.0)],  # 211 - 220
+                [],  # 221 - 230
+                [],  # 231 - 240
+                [],  # 241 - 250
+                [(3, 1.0)],  # 251 - 260
+                [(3, 1.0)],  # 261 - 270
+                [(3, 1.0)],  # 271 - 280
+                [(3, 1.0)],  # 281 - 290
+                [(3, 1.0)],  # 291 - 300
+                [],  # 301 - 310
+                [],  # 311 - 320
+                [],  # 321 - 330
+                [],  # 331 - 340
+                [],  # 341 - 350
+                [],  # 351 - 360
+                [],  # 361 - 370
+                [(51, 1.0)],  # 371 - 380
+                [(51, 1.0)],  # 381 - 390
+                [(51, 1.0)],  # 391 - 400
+                [],  # 401 - 410
+                [(39, 1.0)],  # 411 - 420
+                [(39, 1.0)],  # 421 - 430
+                [],  # 431 - 440
+                [],  # 441 - 450
+                [],  # 451 - 460
+                [(15, 1.0)],  # 461 - 470
+                [(15, 1.0)],  # 471 - 480
+                [(15, 1.0)],  # 481 - 490
+                [],  # 491 - 500
+                [],  # 501 - 510
+                [],  # 511 -
+            ]
+        )
+
+        result = self._evaluate(frame_size=10)
+        self.assertEqual(194, result["total_frames"])
+        for th, data in result["thresholds"].items():
+            self.assertEqual(280, data["above"])
+            self.assertEqual(194, data["correct"])
+
+    def test_precision_above_frame_100(self):
+        self.model.set_predicted_labels(
+            [
+                [(5, 1.0), (11, 1.0)],  # 1 - 100
+                [(11, 1.0), (1, 1.0), (32, 1.0)],  # 101 - 200
+                [(32, 1.0), (3, 1.0)],  # 201 - 300
+                [(51, 1.0)],  # 301 - 400
+                [(39, 1.0), (15, 1.0)],  # 401 - 500
+                [],  # 501 -
+            ]
+        )
+
+        result = self._evaluate(frame_size=100)
+        self.assertEqual(194, result["total_frames"])
+        for th, data in result["thresholds"].items():
+            self.assertEqual(1000, data["above"])
+            self.assertEqual(194, data["correct"])
+            self.assertEqual(1.0, data["recall"])
+            self.assertEqual(0.194, data["precision"])
+
+    def test_precision_recall_above_frame_100(self):
+        self.model.set_predicted_labels(
+            [
+                [(5, 1.0)],  # 1 - 100
+                [(11, 1.0), (48, 1.0), (32, 1.0)],  # 101 - 200
+                [(3, 1.0)],  # 201 - 300
+                [(51, 1.0)],  # 301 - 400
+                [(1, 1.0), (15, 1.0)],  # 401 - 500
+                [],  # 501 -
+            ]
+        )
+
+        result = self._evaluate(frame_size=100)
+        self.assertEqual(194, result["total_frames"])
+        for th, data in result["thresholds"].items():
+            self.assertEqual(800, data["above"])
+            self.assertEqual(123, data["correct"])
+            assert data["recall"] > 0.634
+            self.assertEqual(0.15375, data["precision"])
