@@ -68,7 +68,8 @@ def evaluate_sequences(
         total_frames = 0
         for i, (sequence, _, seq_id) in enumerate(sequence_loader, 1):
             print(f"-> Sequence: {seq_id[0]} [{i}/{len(sequence_loader)}] frames {len(sequence[0])}")
-            trained_model.initialize_short_memory(batch_size=1)  # restart short_memory for a new sequence
+            if keep_short_memory:
+                trained_model.initialize_short_memory(batch_size=1)  # restart short_memory for a new sequence
 
             frame_iter = IterFrame(
                 sequence[0],  # [0] as we are processing batch=1

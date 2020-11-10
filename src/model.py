@@ -60,7 +60,11 @@ class BiRNN(nn.Module):
         # bi-LSTM
         if not self.keep_short_memory:
             self.initialize_short_memory(x.size(0))
-        out, _ = self.lstm(out, (self.h0, self.c0))
+
+        out, (hn, cn) = self.lstm(out, (self.h0, self.c0))
+        if self.keep_short_memory:
+            self.h0 = hn
+            self.c0 = cn
 
         # dropout & classification
         out = self.do(out[:, -1, :])
