@@ -178,7 +178,7 @@ def sequence_evaluation(
         configuration,
         evaluation_loader,
         action_dataset,
-        True
+        keep_short_memory=True
     )
 
     for th, values in res["thresholds"].items():

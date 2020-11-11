@@ -36,7 +36,8 @@ class TestDetection(TestCase):
                 action_file=get_test_path("data/test_actions.data"),
                 meta_file=get_test_path("data/test_meta.txt"),
                 train_mode=False
-            )
+            ),
+            keep_short_memory=False
         )
 
     def test_recall_100_full_frame(self):
