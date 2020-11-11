@@ -1,14 +1,18 @@
 import os
+import re
 import torch
 import yaml
 import numpy as np
 from typing import List, Dict, Tuple
 from torch.utils.data import IterableDataset
+from torch._six import container_abcs, string_classes, int_classes
 
 from src.constants import LABELS, CHECKPOINT_FILE_NAME, CONFIG_FILE_NAME,\
     NUMBER_OF_JOINTS, NUMBER_OF_AXES
 from src.model import BiRNN
 from src.common import get_device
+
+np_str_obj_array_pattern = re.compile(r'[SaUO]')
 
 
 class SequenceDataset(IterableDataset):
@@ -216,3 +220,45 @@ def load_model(model_folder: str) -> Tuple[BiRNN, int, Dict]:
         )
     )
     return pytorch_model, int(model_epoch), config_file
+
+
+def collate_seq(batch):
+    elem = batch[0]
+    elem_type = type(elem)
+    if isinstance(elem, torch.Tensor):
+        if not all(elem.size() == s.size() for s in batch):
+            #for i, s in enumerate(batch):
+            #    print(f"{i}: {s.size()}")
+            #print("------------------------")
+            return torch.nn.utils.rnn.pad_sequence(batch, batch_first=True)
+        else:
+            return torch.stack(batch, 0)
+
+    elif elem_type.__module__ == 'numpy' and elem_type.__name__ != 'str_' \
+            and elem_type.__name__ != 'string_':
+        elem = batch[0]
+        if elem_type.__name__ == 'ndarray':
+            # array of string classes and object
+            if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
+                raise TypeError(f"Invalid type of numpy array: {elem.type}")
+
+            return collate_seq([torch.as_tensor(b) for b in batch])
+        elif elem.shape == ():  # scalars
+            return torch.as_tensor(batch)
+
+    elif isinstance(elem, float):
+        return torch.tensor(batch, dtype=torch.float64)
+    elif isinstance(elem, int_classes):
+        return torch.tensor(batch)
+    elif isinstance(elem, string_classes):
+        return batch
+
+    elif isinstance(elem, container_abcs.Sequence):
+        # check to make sure that the elements in batch have consistent size
+        it = iter(batch)
+        elem_size = len(next(it))
+        if not all(len(elem) == elem_size for elem in it):
+            raise RuntimeError('each element in list of batch should be of equal size')
+        return [collate_seq(samples) for samples in zip(*batch)]
+    else:
+        raise TypeError(f"Invalid type of element: {elem_type}")

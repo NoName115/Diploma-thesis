@@ -10,7 +10,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from src import evaluation, constants
-from src.loader import ActionDataset, SequenceDataset, load_config_file, load_model, create_model
+from src.loader import ActionDataset, SequenceDataset, load_config_file, load_model,\
+    create_model, collate_seq
 from src.model import save_model, BiRNN
 from src.common import get_device
 
@@ -42,12 +43,19 @@ def train(
             model = create_model(model_config)
     else:
         model_config = load_config_file(config_file)
+
+        if model_config["model"]["model_name"]:
+            log_sub_folder = model_config["model"]["model_name"] + "_"
+        else:
+            log_sub_folder = ""
+
+        if additional_log_folder_name:
+            log_sub_folder += additional_log_folder_name + "_"
+
         log_folder = os.path.join(
             output_folder,
-            datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
+            log_sub_folder + datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
         )
-        if additional_log_folder_name:
-            log_folder += "_" + additional_log_folder_name
 
         model = create_model(model_config)
 
@@ -69,7 +77,7 @@ def train(
     train_loader = DataLoader(
         ActionDataset(action_file, meta_file, train_mode=True),
         batch_size=model_config["train"]["batch_size"],
-        collate_fn=None
+        collate_fn=collate_seq
     )
     action_loader = DataLoader(
         ActionDataset(action_file, meta_file, train_mode=False),
@@ -89,15 +97,6 @@ def train(
         iteration_loss = 0.0
 
         for i, (sequence, label, _) in enumerate(train_loader, 1):
-
-            #print(sequence.size())
-            #exit()
-
-            # TODO - batch-size
-            #   - https://pytorch.org/docs/stable/generated/torch.nn.utils.rnn.pack_padded_sequence.html
-            #   - https://discuss.pytorch.org/t/how-to-create-batches-of-a-list-of-varying-dimension-tensors/50773/17
-            #   - https://pytorch.org/docs/stable/_modules/torch/utils/data/dataloader.html#DataLoader
-
             sequence = sequence.view(sequence.size(0), sequence.size(1), -1).to(device)
             label = label.to(device)
 
@@ -128,7 +127,6 @@ def train(
                 )
                 iteration_loss = 0.0
 
-        # TODO - check 'i' a len(train_loader) pri vacsom batchi
         print(f"Epoch time: {int(time.time() - s_time)}s. total_loss: {round(epoch_loss / len(train_loader), 6)}")
 
         board_writer.add_scalar(
