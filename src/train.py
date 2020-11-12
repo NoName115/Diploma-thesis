@@ -91,6 +91,10 @@ def train(
     # train the model
     print("--" * 15)
     print("-" * 10 + " TRAINING " + "-" * 10)
+
+    train_data_length = len(train_loader)
+    print(f"Train data length: {train_data_length}")
+
     for epoch in range(start_epoch + 1, end_epoch + 1):
         s_time = time.time()
         epoch_loss = 0.0
@@ -117,21 +121,21 @@ def train(
             if i % model_config["train"]["report_step"] == 0:
                 average_loss = round(iteration_loss / model_config['train']['report_step'], 6)
                 print(
-                    f"\t{i}/{len(train_loader)} - Epoch [{epoch}/{end_epoch}], "
+                    f"\t{i}/{train_data_length} - Epoch [{epoch}/{end_epoch}], "
                     f"avg_loss: {average_loss}"
                 )
                 board_writer.add_scalar(
                     "Overall/Iteration_Loss",
                     average_loss,
-                    (epoch * len(train_loader)) + i
+                    (epoch * train_data_length) + i
                 )
                 iteration_loss = 0.0
 
-        print(f"Epoch time: {int(time.time() - s_time)}s. total_loss: {round(epoch_loss / len(train_loader), 6)}")
+        print(f"Epoch time: {int(time.time() - s_time)}s. total_loss: {round(epoch_loss / train_data_length, 6)}")
 
         board_writer.add_scalar(
             "Overall/Epoch_Loss",
-            round(epoch_loss / len(train_loader), 6),
+            round(epoch_loss / train_data_length, 6),
             epoch
         )
 
