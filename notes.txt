@@ -1,6 +1,3 @@
- - nechat frame 1, ale nechat context - nemazat pamet
- 	- premazat pamat ked to zacne padat dole
-
  - precision
  	- menovatel, vsetky ktore som oznacil nad threshold
  - recall
@@ -11,14 +8,13 @@
  	- to je makro/mikro
  		- makro - priemner
  		- mikro - correct / above (vsetky)
- 
- - kde zacina sekvencia, od 0 alebo 1 ?
- 
+
  - rozdelit grafy - klasifikacia/detekcia
  
  - klasifikacia --> CV - natrenovat
 	 - batch-size - na 40
 	 - jedno-smerna siet
- 
- - vytvorit testovaci dataset pre evaluaciu metrik
- 
+
+
+# Ideas
+- premazat pamat pri evaluacii v momente ked to klesa dole po niekolkych frameoch

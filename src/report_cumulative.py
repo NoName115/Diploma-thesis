@@ -26,7 +26,7 @@ def report_cumulative_data(data_file: str, log_dir: str):
 
     for (_, values), stp in zip(max_data.items(), range(steps)):
         writer.add_scalars(
-            "Overall",
+            "Detection",
             {
                 "Precision": values["precision"],
                 "Recall": values["recall"],

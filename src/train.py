@@ -125,7 +125,7 @@ def train(
                     f"avg_loss: {average_loss}"
                 )
                 board_writer.add_scalar(
-                    "Overall/Iteration_Loss",
+                    "Train/Iteration_Loss",
                     average_loss,
                     (epoch * train_data_length) + i
                 )
@@ -134,7 +134,7 @@ def train(
         print(f"Epoch time: {int(time.time() - s_time)}s. total_loss: {round(epoch_loss / train_data_length, 6)}")
 
         board_writer.add_scalar(
-            "Overall/Epoch_Loss",
+            "Train/Epoch_Loss",
             round(epoch_loss / train_data_length, 6),
             epoch
         )
@@ -187,24 +187,24 @@ def sequence_evaluation(
 
     for th, values in res["thresholds"].items():
         tb_writer.add_scalar(
-            f"Precision/{th}",
+            f"_Precision/{th}",
             values["precision"],
             epoch
         )
         tb_writer.add_scalar(
-            f"Recall/{th}",
+            f"_Recall/{th}",
             values["recall"],
             epoch
         )
         tb_writer.add_scalar(
-            f"F1-score/{th}",
+            f"_F1-score/{th}",
             values["f1-score"],
             epoch
         )
 
     # AP - score
     tb_writer.add_scalar(
-        f"Overall/AP",
+        f"Detection/AP",
         res["AP"],
         epoch
     )
@@ -231,7 +231,7 @@ def action_evaluation(
     )
 
     tb_writer.add_scalar(
-        f"Overall/Accuracy",
+        f"Classification/Accuracy",
         round(correct / total, 6),
         epoch
     )
