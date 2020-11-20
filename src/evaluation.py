@@ -1,6 +1,6 @@
 import torch
 import argparse
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 from torch.utils.data import DataLoader
 
 from src.model import BiRNN
@@ -46,7 +46,8 @@ def evaluate_sequences(
     model_config: Dict,
     sequence_loader: DataLoader,
     action_dataset: ActionDataset,
-    keep_short_memory: bool
+    keep_short_memory: bool,
+    frame_size: Optional[int] = None
 ) -> Dict:
     print("-" * 6 + " SEQUENCE EVALUATION " + "-" * 6)
     device = get_device()
@@ -73,7 +74,7 @@ def evaluate_sequences(
 
             frame_iter = IterFrame(
                 sequence[0],  # [0] as we are processing batch=1
-                model_config['evaluation']['frame_size']
+                model_config['evaluation']['frame_size'] if not frame_size else frame_size
             )
 
             for j, frame in enumerate(frame_iter, 1):
@@ -193,6 +194,8 @@ if __name__ == "__main__":
     parser.add_argument("--data-sequences", "-ds", help="File with data for sequence evaluation")
     parser.add_argument("--short-memory", "-sm", help="If set to True model will keep short memory",
                         type=bool, default=False)
+    parser.add_argument("--frame-size", "-f", help="Number of frames to take for classification",
+                        type=int, default=None)
 
     args = parser.parse_args()
 
@@ -218,5 +221,6 @@ if __name__ == "__main__":
                 batch_size=1
             ),
             ActionDataset(args.data_actions, args.meta, train_mode=False),
-            keep_short_memory=args.short_memory
+            keep_short_memory=args.short_memory,
+            frame_size=args.frame_size
         )

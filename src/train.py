@@ -74,6 +74,7 @@ def train(
     )
 
     # load training & testing data
+    print(f"Training with batch: {model_config['train']['batch_size']}")
     train_loader = DataLoader(
         ActionDataset(action_file, meta_file, train_mode=True),
         batch_size=model_config["train"]["batch_size"],
