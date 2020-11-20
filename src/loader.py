@@ -4,7 +4,7 @@ import torch
 import yaml
 import numpy as np
 from typing import List, Dict, Tuple
-from torch.utils.data import IterableDataset
+from torch.utils.data import IterableDataset, Dataset
 from torch._six import container_abcs, string_classes, int_classes
 
 from src.constants import LABELS, CHECKPOINT_FILE_NAME, CONFIG_FILE_NAME,\
@@ -63,7 +63,7 @@ class SequenceDataset(IterableDataset):
         return len(self.valid_sequences)
 
 
-class ActionDataset(IterableDataset):
+class ActionDatasetIterative(IterableDataset):
 
     def __init__(self, action_file: str, meta_file: str, train_mode: bool = True, transforms=None):
         assert action_file.find("actions") != -1
@@ -164,6 +164,38 @@ class ActionDataset(IterableDataset):
 
     def __iter__(self):
         return self.get_valid_sequence()
+
+    def __len__(self):
+        return self.dataset_length
+
+
+class ActionDataset(Dataset):
+
+    def __init__(self, action_file: str, meta_file: str, train_mode: bool = True, transforms=None):
+        assert action_file.find("actions") != -1
+
+        self.action_file = action_file
+        self.meta_file = meta_file
+        self.train_mode = train_mode
+        self.transforms = transforms
+
+        self.valid_actions = process_meta_file(self.meta_file, self.train_mode)
+        self.classes = LABELS
+
+        self.dataset_length = self.initialize_dataset_length()
+
+    def initialize_dataset_length(self):
+        counter = 0
+        file_reader = read_file(self.action_file)
+        for line in file_reader:
+            if line.find("#objectKey") != -1:
+                action_id = line.split(" ")[-1].split("_")[0]
+                if action_id in self.valid_actions:
+                    counter += 1
+        return counter
+
+    def __getitem__(self, idx: int):
+        pass
 
     def __len__(self):
         return self.dataset_length

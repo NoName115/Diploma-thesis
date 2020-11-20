@@ -39,9 +39,11 @@ class BiRNN(nn.Module):
     def enable_keep_short_memory(self, batch_size: int = 1):
         self.initialize_short_memory(batch_size=batch_size)
         self.keep_short_memory = True
+        print(f"[M] Keep short memory {self.keep_short_memory}")
 
     def disable_keep_short_memory(self):
         self.keep_short_memory = False
+        print(f"[M] Keep short memory {self.keep_short_memory}")
 
     def train(self, mode: bool = True):
         super().train(mode=mode)

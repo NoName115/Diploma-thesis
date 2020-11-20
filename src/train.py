@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from src import evaluation, constants
-from src.loader import ActionDataset, SequenceDataset, load_config_file, load_model,\
+from src.loader import ActionDatasetIterative, SequenceDataset, load_config_file, load_model,\
     create_model, collate_seq
 from src.model import save_model, BiRNN
 from src.common import get_device
@@ -76,12 +76,12 @@ def train(
     # load training & testing data
     print(f"Training with batch: {model_config['train']['batch_size']}")
     train_loader = DataLoader(
-        ActionDataset(action_file, meta_file, train_mode=True),
+        ActionDatasetIterative(action_file, meta_file, train_mode=True),
         batch_size=model_config["train"]["batch_size"],
         collate_fn=collate_seq
     )
     action_loader = DataLoader(
-        ActionDataset(action_file, meta_file, train_mode=False),
+        ActionDatasetIterative(action_file, meta_file, train_mode=False),
         batch_size=1
     )
     sequence_loader = DataLoader(
@@ -150,7 +150,7 @@ def train(
                 configuration=model_config,
                 tb_writer=board_writer,
                 evaluation_loader=sequence_loader,
-                action_dataset=ActionDataset(
+                action_dataset=ActionDatasetIterative(
                     action_file, meta_file, train_mode=False
                 ),
                 trained_model=model,
@@ -174,7 +174,7 @@ def sequence_evaluation(
     configuration: Dict,
     tb_writer: SummaryWriter,
     evaluation_loader: DataLoader,
-    action_dataset: ActionDataset,
+    action_dataset: ActionDatasetIterative,
     trained_model: BiRNN,
     epoch: int,
 ):

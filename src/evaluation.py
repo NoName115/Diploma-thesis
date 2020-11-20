@@ -4,7 +4,7 @@ from typing import Dict, Tuple, Optional
 from torch.utils.data import DataLoader
 
 from src.model import BiRNN
-from src.loader import load_model, ActionDataset, SequenceDataset
+from src.loader import load_model, ActionDatasetIterative, SequenceDataset
 from src.common import get_device
 
 
@@ -45,7 +45,7 @@ def evaluate_sequences(
     trained_model: BiRNN,
     model_config: Dict,
     sequence_loader: DataLoader,
-    action_dataset: ActionDataset,
+    action_dataset: ActionDatasetIterative,
     keep_short_memory: bool,
     frame_size: Optional[int] = None
 ) -> Dict:
@@ -65,6 +65,7 @@ def evaluate_sequences(
             round((1 / model_config['evaluation']['threshold_steps']) * (i + 1), 4),
             eval_dict.copy()
         ) for i in range(model_config['evaluation']['threshold_steps'])]
+        current_frame_size = model_config['evaluation']['frame_size'] if not frame_size else frame_size
 
         total_frames = 0
         for i, (sequence, _, seq_id) in enumerate(sequence_loader, 1):
@@ -74,7 +75,7 @@ def evaluate_sequences(
 
             frame_iter = IterFrame(
                 sequence[0],  # [0] as we are processing batch=1
-                model_config['evaluation']['frame_size'] if not frame_size else frame_size
+                current_frame_size
             )
 
             for j, frame in enumerate(frame_iter, 1):
@@ -86,11 +87,11 @@ def evaluate_sequences(
                 assert outputs.size() == (1, 43)
 
                 # Only valid frames
-                start_frame_idx = (j - 1) * model_config['evaluation']['frame_size'] + 1
+                start_frame_idx = (j - 1) * current_frame_size + 1
                 res = action_dataset.get_labels_by_sequence(
                     sequence_name=seq_id[0],
                     seq_start_idx=start_frame_idx,
-                    seq_length=model_config['evaluation']['frame_size']
+                    seq_length=current_frame_size
                 )
                 if not res:
                     continue
@@ -207,7 +208,7 @@ if __name__ == "__main__":
             trained_model,
             model_config,
             DataLoader(
-                ActionDataset(args.data_actions, args.meta, train_mode=False),
+                ActionDatasetIterative(args.data_actions, args.meta, train_mode=False),
                 batch_size=1
             )
         )
@@ -220,7 +221,7 @@ if __name__ == "__main__":
                 SequenceDataset(args.data_sequences, args.meta, train_mode=False),
                 batch_size=1
             ),
-            ActionDataset(args.data_actions, args.meta, train_mode=False),
+            ActionDatasetIterative(args.data_actions, args.meta, train_mode=False),
             keep_short_memory=args.short_memory,
             frame_size=args.frame_size
         )

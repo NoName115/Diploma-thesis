@@ -2,7 +2,7 @@ from unittest import TestCase
 from torch.utils.data import DataLoader
 
 from src.evaluation import evaluate_actions
-from src.loader import load_config_file, ActionDataset
+from src.loader import load_config_file, ActionDatasetIterative
 
 from tests import get_test_path
 from tests.mocked_model import MockedClassificationBiRNN
@@ -22,7 +22,7 @@ class TestClassification(TestCase):
             trained_model=self.model,
             model_config=load_config_file(get_test_path("data/config_model.yaml")),
             evaluation_loader=DataLoader(
-                ActionDataset(
+                ActionDatasetIterative(
                     action_file=get_test_path("data/test_actions.data"),
                     meta_file=get_test_path("data/test_meta.txt"),
                     train_mode=False

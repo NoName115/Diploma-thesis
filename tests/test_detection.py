@@ -3,7 +3,7 @@ from typing import Tuple, Optional
 from torch.utils.data import DataLoader
 
 from src.evaluation import evaluate_sequences
-from src.loader import load_config_file, ActionDataset, SequenceDataset
+from src.loader import load_config_file, ActionDatasetIterative, SequenceDataset
 
 from tests import get_test_path
 from tests.mocked_model import MockedDetectionBiRNN
@@ -32,7 +32,7 @@ class TestDetection(TestCase):
                     train_mode=False
                 )
             ),
-            action_dataset=ActionDataset(
+            action_dataset=ActionDatasetIterative(
                 action_file=get_test_path("data/test_actions.data"),
                 meta_file=get_test_path("data/test_meta.txt"),
                 train_mode=False
