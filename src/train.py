@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from src import evaluation, constants
 from src.loader import ActionDatasetIterative, SequenceDataset, load_config_file, load_model,\
-    create_model, collate_seq
+    create_model, collate_seq, ActionDatasetList
 from src.model import save_model, BiRNN
 from src.common import get_device
 
@@ -75,10 +75,18 @@ def train(
 
     # load training & testing data
     print(f"Training with batch: {model_config['train']['batch_size']}")
+    """
     train_loader = DataLoader(
         ActionDatasetIterative(action_file, meta_file, train_mode=True),
         batch_size=model_config["train"]["batch_size"],
         collate_fn=collate_seq
+    )
+    """
+    train_loader = DataLoader(
+        ActionDatasetList(action_file, meta_file, train_mode=True),
+        batch_size=model_config["train"]['batch_size'],
+        collate_fn=collate_seq,
+        shuffle=True
     )
     action_loader = DataLoader(
         ActionDatasetIterative(action_file, meta_file, train_mode=False),

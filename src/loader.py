@@ -169,7 +169,7 @@ class ActionDatasetIterative(IterableDataset):
         return self.dataset_length
 
 
-class ActionDataset(Dataset):
+class ActionDatasetList(Dataset):
 
     def __init__(self, action_file: str, meta_file: str, train_mode: bool = True, transforms=None):
         assert action_file.find("actions") != -1
@@ -183,6 +183,10 @@ class ActionDataset(Dataset):
         self.classes = LABELS
 
         self.dataset_length = self.initialize_dataset_length()
+        self.data_list = self.load_data()
+
+        print(f"Dataset length: {self.dataset_length}")
+        print(f"Data list length: {len(self.data_list)}")
 
     def initialize_dataset_length(self):
         counter = 0
@@ -194,8 +198,21 @@ class ActionDataset(Dataset):
                     counter += 1
         return counter
 
+    def load_data(self):
+        ad_iter = ActionDatasetIterative(
+            self.action_file,
+            self.meta_file,
+            self.train_mode,
+        )
+        results = []
+        for i, data_tuple in enumerate(ad_iter, 1):
+            if i % 500 == 0:
+                print(f"Processing {i}/{len(ad_iter)}")
+            results.append(data_tuple)
+        return results
+
     def __getitem__(self, idx: int):
-        pass
+        return self.data_list[idx]
 
     def __len__(self):
         return self.dataset_length
