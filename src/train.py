@@ -117,6 +117,8 @@ def train(
             # forward pass
             output = model.forward(sequence)
 
+            # TODO - error catch
+
             # loss calculation
             loss = criterion(output, label)
             epoch_loss += loss.item()
@@ -143,9 +145,16 @@ def train(
 
         lg.info(f"Epoch time: {int(time.time() - s_time)}s. total_loss: {round(epoch_loss / train_data_length, 6)}")
 
+        # Log training loss value
         board_writer.add_scalar(
             "Train/Epoch_Loss",
             round(epoch_loss / train_data_length, 6),
+            epoch
+        )
+        # Log learning-rate
+        board_writer.add_scalar(
+            "Train/Learning_rate",
+            model_config["train"]["learning_rate"],
             epoch
         )
 
