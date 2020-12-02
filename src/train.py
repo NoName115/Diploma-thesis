@@ -13,7 +13,7 @@ from src import evaluation, constants
 from src.loader import ActionDatasetIterative, SequenceDataset, load_config_file, load_model,\
     create_model, collate_seq, ActionDatasetList
 from src.model import save_model, BiRNN
-from src.common import get_device
+from src.common import get_device, DATETIME_FORMAT, logger_manager
 
 
 def train(
@@ -27,16 +27,11 @@ def train(
     retrain: bool,
     additional_log_folder_name: str
 ):
-    # initialize starting parameters
-    device = get_device()
-    print(f"Training on: {device}")
-
-    start_epoch = 0
-    end_epoch = max_epochs
-
     # load model parameters and model configuration
     if model_folder:
         assert os.path.exists(model_folder), "Model folder doesn't exist"
+        lg = logger_manager.init_train_logger(model_folder)
+
         model, start_epoch, model_config = load_model(model_folder)
         log_folder = model_folder
         if retrain:
@@ -54,19 +49,32 @@ def train(
 
         log_folder = os.path.join(
             output_folder,
-            log_sub_folder + datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
+            log_sub_folder + datetime.now().strftime(DATETIME_FORMAT)
         )
+        os.mkdir(log_folder)
+        lg = logger_manager.init_train_logger(log_folder)
 
         model = create_model(model_config)
+
+    # initialize starting parameters
+    device = get_device()
+    lg.info(f"Training on: {device}")
+
+    start_epoch = 0
+    end_epoch = max_epochs
+
+    # print used configuration file
+    lg.info("-" * 8 + " CONFIGURATION " + "-" * 8)
+    lg.info(json.dumps(model_config, indent=4))
 
     # set model into training mode
     model.train()
 
     # initialize training
-    print(f"Log directory for training: {log_folder}")
+    lg.info(f"Log directory for training: {log_folder}")
     board_writer = SummaryWriter(log_dir=log_folder)
 
-    criterion = nn.BCELoss()
+    criterion = nn.BCELoss(reduction='mean')
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=model_config["train"]["learning_rate"],
@@ -74,17 +82,10 @@ def train(
     )
 
     # load training & testing data
-    print(f"Training with batch: {model_config['train']['batch_size']}")
-    """
-    train_loader = DataLoader(
-        ActionDatasetIterative(action_file, meta_file, train_mode=True),
-        batch_size=model_config["train"]["batch_size"],
-        collate_fn=collate_seq
-    )
-    """
+    lg.info(f"Training with batch: {model_config['train']['batch_size']}")
     train_loader = DataLoader(
         ActionDatasetList(action_file, meta_file, train_mode=True),
-        batch_size=model_config["train"]['batch_size'],
+        model_config["train"]['batch_size'],
         collate_fn=collate_seq,
         shuffle=True
     )
@@ -98,11 +99,11 @@ def train(
     )
 
     # train the model
-    print("--" * 15)
-    print("-" * 10 + " TRAINING " + "-" * 10)
+    lg.info("--" * 15)
+    lg.info("-" * 10 + " TRAINING " + "-" * 10)
 
     train_data_length = len(train_loader)
-    print(f"Train data length: {train_data_length}")
+    lg.info(f"Train data length: {train_data_length}")
 
     for epoch in range(start_epoch + 1, end_epoch + 1):
         s_time = time.time()
@@ -129,7 +130,7 @@ def train(
             # Training info
             if i % model_config["train"]["report_step"] == 0:
                 average_loss = round(iteration_loss / model_config['train']['report_step'], 6)
-                print(
+                lg.info(
                     f"\t{i}/{train_data_length} - Epoch [{epoch}/{end_epoch}], "
                     f"avg_loss: {average_loss}"
                 )
@@ -140,7 +141,7 @@ def train(
                 )
                 iteration_loss = 0.0
 
-        print(f"Epoch time: {int(time.time() - s_time)}s. total_loss: {round(epoch_loss / train_data_length, 6)}")
+        lg.info(f"Epoch time: {int(time.time() - s_time)}s. total_loss: {round(epoch_loss / train_data_length, 6)}")
 
         board_writer.add_scalar(
             "Train/Epoch_Loss",
@@ -191,7 +192,7 @@ def sequence_evaluation(
         configuration,
         evaluation_loader,
         action_dataset,
-        keep_short_memory=True
+        keep_short_memory=True,
     )
 
     for th, values in res["thresholds"].items():
@@ -236,7 +237,7 @@ def action_evaluation(
     correct, total = evaluation.evaluate_actions(
         trained_model,
         configuration,
-        evaluation_loader
+        evaluation_loader,
     )
 
     tb_writer.add_scalar(

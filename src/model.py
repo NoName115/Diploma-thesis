@@ -5,7 +5,7 @@ from typing import Dict
 from torch import nn
 
 from src.constants import MODEL_FINAL_FILE_NAME, CHECKPOINT_FILE_NAME, CONFIG_FILE_NAME
-from src.common import get_device
+from src.common import get_device, get_logger
 
 
 class BiRNN(nn.Module):
@@ -18,6 +18,8 @@ class BiRNN(nn.Module):
         num_classes: int
     ):
         super().__init__()
+        self._logger = get_logger()
+
         self.device = get_device()
         self.hidden_size = lstm_hidden_size
         self.num_layers = 2  # bi-LSTM
@@ -39,11 +41,11 @@ class BiRNN(nn.Module):
     def enable_keep_short_memory(self, batch_size: int = 1):
         self.initialize_short_memory(batch_size=batch_size)
         self.keep_short_memory = True
-        print(f"[M] Keep short memory {self.keep_short_memory}")
+        self._logger.info(f"[M] Keep short memory: {self.keep_short_memory}")
 
     def disable_keep_short_memory(self):
         self.keep_short_memory = False
-        print(f"[M] Keep short memory {self.keep_short_memory}")
+        self._logger.info(f"[M] Keep short memory: {self.keep_short_memory}")
 
     def train(self, mode: bool = True):
         super().train(mode=mode)
@@ -92,4 +94,4 @@ def save_model(
     with open(os.path.join(output_folder, CONFIG_FILE_NAME), "w") as cf:
         yaml.dump(model_configuration, cf)
 
-    print(f"Model saved into {file_path}")
+    get_logger().info(f"Model saved into {file_path}")

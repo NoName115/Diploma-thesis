@@ -10,7 +10,7 @@ from torch._six import container_abcs, string_classes, int_classes
 from src.constants import LABELS, CHECKPOINT_FILE_NAME, CONFIG_FILE_NAME,\
     NUMBER_OF_JOINTS, NUMBER_OF_AXES
 from src.model import BiRNN
-from src.common import get_device
+from src.common import get_device, get_logger
 
 np_str_obj_array_pattern = re.compile(r'[SaUO]')
 
@@ -65,8 +65,16 @@ class SequenceDataset(IterableDataset):
 
 class ActionDatasetIterative(IterableDataset):
 
-    def __init__(self, action_file: str, meta_file: str, train_mode: bool = True, transforms=None):
+    def __init__(
+        self,
+        action_file: str,
+        meta_file: str,
+        train_mode: bool = True,
+        transforms=None
+    ):
         assert action_file.find("actions") != -1
+
+        self._logger = get_logger()
 
         self.action_file = action_file
         self.meta_file = meta_file
@@ -171,8 +179,15 @@ class ActionDatasetIterative(IterableDataset):
 
 class ActionDatasetList(Dataset):
 
-    def __init__(self, action_file: str, meta_file: str, train_mode: bool = True, transforms=None):
+    def __init__(
+        self,
+        action_file: str,
+        meta_file: str,
+        train_mode: bool = True,
+        transforms=None
+    ):
         assert action_file.find("actions") != -1
+        self._logger = get_logger()
 
         self.action_file = action_file
         self.meta_file = meta_file
@@ -185,8 +200,8 @@ class ActionDatasetList(Dataset):
         self.dataset_length = self.initialize_dataset_length()
         self.data_list = self.load_data()
 
-        print(f"Dataset length: {self.dataset_length}")
-        print(f"Data list length: {len(self.data_list)}")
+        self._logger.info(f"Dataset length: {self.dataset_length}")
+        self._logger.info(f"Data list length: {len(self.data_list)}")
 
     def initialize_dataset_length(self):
         counter = 0
@@ -207,7 +222,7 @@ class ActionDatasetList(Dataset):
         results = []
         for i, data_tuple in enumerate(ad_iter, 1):
             if i % 500 == 0:
-                print(f"Processing {i}/{len(ad_iter)}")
+                self._logger.info(f"Loading actions: {i}/{len(ad_iter)}")
             results.append(data_tuple)
         return results
 
@@ -238,9 +253,6 @@ def load_config_file(config_file: str) -> Dict:
     with open(config_file, "r") as cf:
         raw_data = cf.read()
 
-    print("-" * 8 + " CONFIGURATION " + "-" * 8)
-    print(raw_data)
-
     return yaml.safe_load(raw_data)
 
 
@@ -255,7 +267,7 @@ def create_model(model_config: Dict) -> BiRNN:
 
 
 def load_model(model_folder: str) -> Tuple[BiRNN, int, Dict]:
-    print(f"Loading model from {model_folder}")
+    get_logger().info(f"Loading model from {model_folder}")
 
     with open(os.path.join(model_folder, CHECKPOINT_FILE_NAME), "r") as lf:
         last_model_file, model_epoch = lf.read().split('\n')

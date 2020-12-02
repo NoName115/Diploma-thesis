@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 
 from src.model import BiRNN
 from src.loader import load_model, ActionDatasetIterative, SequenceDataset
-from src.common import get_device
+from src.common import get_device, get_logger, logger_manager
 
 
 class IterFrame:
@@ -47,9 +47,11 @@ def evaluate_sequences(
     sequence_loader: DataLoader,
     action_dataset: ActionDatasetIterative,
     keep_short_memory: bool,
-    frame_size: Optional[int] = None
+    frame_size: Optional[int] = None,
 ) -> Dict:
-    print("-" * 6 + " SEQUENCE EVALUATION " + "-" * 6)
+    eval_logger = get_logger()
+    eval_logger.info("-" * 6 + " SEQUENCE EVALUATION " + "-" * 6)
+
     device = get_device()
     trained_model.eval()
     if keep_short_memory:
@@ -69,7 +71,7 @@ def evaluate_sequences(
 
         total_frames = 0
         for i, (sequence, _, seq_id) in enumerate(sequence_loader, 1):
-            print(f"-> Sequence: {seq_id[0]} [{i}/{len(sequence_loader)}] frames {len(sequence[0])}")
+            eval_logger.info(f"-> Sequence: {seq_id[0]} [{i}/{len(sequence_loader)}] frames {len(sequence[0])}")
             if keep_short_memory:
                 trained_model.initialize_short_memory(batch_size=1)  # restart short_memory for a new sequence
 
@@ -111,9 +113,9 @@ def evaluate_sequences(
                                 result_dict["correct"] += (e_idx - s_idx) + 1
 
                 if j % model_config['evaluation']['report_step'] == 0:
-                    print(f"\tProcessed steps: {j}/{len(frame_iter)}")
+                    eval_logger.info(f"\tProcessed steps: {j}/{len(frame_iter)}")
 
-                #print(f"{torch.argmax(outputs.data).item()} - {round(torch.max(outputs.data).item(), 4)}")
+                #eval_logger.info(f"{torch.argmax(outputs.data).item()} - {round(torch.max(outputs.data).item(), 4)}")
 
     # Calculate final statistics
     result_dict = {
@@ -140,7 +142,7 @@ def evaluate_sequences(
             "above": values["above"]
         }
 
-        print(
+        eval_logger.info(
             "[{:.2f}]".format(th) +
             f"\n   C: {values['correct']}, T: {total_frames}, A: {values['above']}"
             f"\n   Precision: {round(100 * precision, 4)}%"
@@ -149,7 +151,7 @@ def evaluate_sequences(
         )
 
     result_dict["AP"] = ap_score
-    print(f"[AP] {round(ap_score, 4)}")
+    eval_logger.info(f"[AP] {round(ap_score, 4)}")
 
     return result_dict
 
@@ -157,9 +159,11 @@ def evaluate_sequences(
 def evaluate_actions(
     trained_model: BiRNN,
     model_config: Dict,
-    evaluation_loader: DataLoader
+    evaluation_loader: DataLoader,
 ) -> Tuple[int, int]:
-    print("-" * 6 + " ACTION EVALUATION " + "-" * 6)
+    eval_logger = get_logger()
+    eval_logger.info("-" * 6 + " ACTION EVALUATION " + "-" * 6)
+
     device = get_device()
     trained_model.eval().disable_keep_short_memory()
 
@@ -169,7 +173,7 @@ def evaluate_actions(
 
         for i, (sequence, labels, _) in enumerate(evaluation_loader, 1):
             if i % model_config['evaluation']['report_step'] == 0:
-                print(f"\tProcessed: [{i}/{len(evaluation_loader)}]")
+                eval_logger.info(f"\tProcessed: [{i}/{len(evaluation_loader)}]")
 
             sequence = sequence.view(sequence.size(0), sequence.size(1), -1).to(device)
             target_label = torch.argmax(labels).item()
@@ -182,7 +186,7 @@ def evaluate_actions(
             if target_label == predicted_label:
                 correct += 1
 
-        print(f"Accuracy: {round(100 * (correct / total), 4)}% - [{correct}/{total}]")
+        eval_logger.info(f"Accuracy: {round(100 * (correct / total), 4)}% - [{correct}/{total}]")
 
         return correct, total
 
@@ -199,6 +203,9 @@ if __name__ == "__main__":
                         type=int, default=None)
 
     args = parser.parse_args()
+
+    # initialize evaluation logger
+    logger_manager.init_eval_logger(args.model)
 
     # load model & configuration
     trained_model, _, model_config = load_model(args.model)
