@@ -117,12 +117,17 @@ def train(
             # forward pass
             output = model.forward(sequence)
 
-            # TODO - error catch
-
             # loss calculation
-            loss = criterion(output, label)
-            epoch_loss += loss.item()
-            iteration_loss += loss.item()
+            try:
+                loss = criterion(output, label)
+                epoch_loss += loss.item()
+                iteration_loss += loss.item()
+            except Exception as e:
+                lg.error(e)
+                lg.error(f"O: {output.size()}")
+                lg.error(f"L: {label.size()}")
+                lg.error("Skipping this sequence -- error occurred")
+                continue
 
             # backward pass
             optimizer.zero_grad()
