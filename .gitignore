@@ -6,6 +6,7 @@ model.pth
 output_models/
 sandbox/
 !tests/data/
+notebooks/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

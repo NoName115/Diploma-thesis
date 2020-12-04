@@ -85,6 +85,7 @@ def train(
     lg.info(f"Training with batch: {model_config['train']['batch_size']}")
     train_loader = DataLoader(
         ActionDatasetList(action_file, meta_file, train_mode=True),
+        #ActionDatasetIterative(action_file, meta_file, train_mode=True),
         model_config["train"]['batch_size'],
         collate_fn=collate_seq,
         shuffle=True

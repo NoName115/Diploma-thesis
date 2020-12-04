@@ -26,12 +26,18 @@ class BiRNN(nn.Module):
         self.keep_short_memory = False
 
         # Embedding part, from 75 -> 64 size
-        self.embedding = nn.Linear(input_size, embedding_output_size)
-        self.relu = nn.ReLU()
+        #self.embedding = nn.Linear(input_size, embedding_output_size)
+        #self.relu = nn.ReLU()
 
-        self.lstm = nn.LSTM(embedding_output_size, lstm_hidden_size, self.num_layers, batch_first=True,
-                            bidirectional=True)
-        self.do = nn.Dropout(0.5)
+        self.lstm = nn.LSTM(
+            input_size,
+            lstm_hidden_size,
+            self.num_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=0.5
+        )
+
         self.classifier = nn.Linear(self.hidden_size * self.num_layers, num_classes)
         self.sigmoid = nn.Sigmoid()
 
@@ -58,21 +64,20 @@ class BiRNN(nn.Module):
 
     def forward(self, x):
         # embedding
-        out = self.embedding(x)
-        out = self.relu(out)
+        #out = self.embedding(x)
+        #out = self.relu(out)
 
         # bi-LSTM
         if not self.keep_short_memory:
             self.initialize_short_memory(x.size(0))
 
-        out, (hn, cn) = self.lstm(out, (self.h0, self.c0))
+        out, (hn, cn) = self.lstm(x, (self.h0, self.c0))
         if self.keep_short_memory:
             self.h0 = hn
             self.c0 = cn
 
         # dropout & classification
-        out = self.do(out[:, -1, :])
-        out = self.classifier(out)
+        out = self.classifier(out[:, -1, :])
         return self.sigmoid(out)
 
 
