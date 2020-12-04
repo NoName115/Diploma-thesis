@@ -2,10 +2,10 @@ model:
   input_size: 75
   hidden_size: 512
   embedding_input_size: 64
-  model_name: "cross_view-batch_1_lr_0005_rs"
+  model_name: "cross_view-batch_1_lr_001"
 
 train:
-  learning_rate: 0.0005
+  learning_rate: 0.001
   l2_weight_decay: 0.0001
   batch_size: 1
   save_step: 10  # save model every Nth epoch
