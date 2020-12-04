@@ -18,9 +18,9 @@
 
 | Model type    | Batch-size | Learn-rate |Shuffle | epochs | Loss    | Accuracy | AP     | is_training |
 | ------------- |:----------:|:----------:|:------ |:------:|:-------:|:--------:|:------:|:----------- |
-| cross-subject | 1          | 0.0005     | True   | 200    |         |   xx %   | x      |             |
+| cross-subject | 1          | 0.005      | True   | 200    |         |   xx %   | x      |             |
 | cross-subject | 20         | 0.001      | True   | 200    |         |   xx %   | x      |             |
-| cross-view    | 1          | 0.0005     | True   | 200    |         |   xx %   | x      |             |
+| cross-view    | 1          | 0.001      | True   | 200    |         |   xx %   | x      |             |
 | cross-view    | 20         | 0.001      | True   | 200    |         |   xx %   | x      |             |
 | ------------- | ---------- | ---------- | ------ | ------ | ------- | -------- | ------ | ----------- |
 | cross-subject | 1          | 0.001/5 + 0.0005      | True   | 200    |         |   xx %   | x      |
