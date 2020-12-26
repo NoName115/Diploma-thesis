@@ -17,7 +17,7 @@
 | Model type    | Batch-size | Learn-rate |Shuffle | epochs | Loss    | Accuracy | AP     | is_training |
 | ------------- |:----------:|:----------:|:------ |:------:|:-------:|:--------:|:------:|:----------- |
 | cross-subject | 1          | 0.0005     | True   | 140    |  0.038  |  ~68 %   | 0.05   | True        |
-| cross-view    | 1          | 0.0005     | True   | 200    | 0.038   |  ~75 %   | 0.056  | True        |
+| cross-view    | 1          | 0.0005     | True   | 200    |  0.038  |  ~75 %   | 0.056  | True        |
 
 ### TODO
 
