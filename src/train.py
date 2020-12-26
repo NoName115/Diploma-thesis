@@ -27,6 +27,9 @@ def train(
     retrain: bool,
     additional_log_folder_name: str
 ):
+    start_epoch = 0
+    end_epoch = max_epochs
+
     # load model parameters and model configuration
     if model_folder:
         assert os.path.exists(model_folder), "Model folder doesn't exist"
@@ -59,9 +62,6 @@ def train(
     # initialize starting parameters
     device = get_device()
     lg.info(f"Training on: {device}")
-
-    start_epoch = 0
-    end_epoch = max_epochs
 
     # print used configuration file
     lg.info("-" * 8 + " CONFIGURATION " + "-" * 8)
