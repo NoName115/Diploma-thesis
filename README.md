@@ -28,7 +28,8 @@
 
 | Model type    | Batch-size | Learn-rate |Shuffle | epochs | Loss    | Accuracy | AP     | is_training |
 | ------------- |:----------:|:----------:|:------ |:------:|:-------:|:--------:|:------:|:----------- |
-| ------------- | ---------- | ---------- | ------ | ------ | ------- | -------- | ------ | ----------- |
-| cross-subject | 1          | 0.001/5 + 0.0005      | True   | 200    |         |   xx %   | x      |
+| cross-subject | 4          | 0.0005     | True   | 200    |         |          |        |             | 
+| cross-view    | 4          | 0.0005     | True   | 200    |         |          |        |             |
+| cross-view    | 1          | 0.0005     | True   | 200    |         |          |        |             |
 
 Pre cross-subject scenar dotrenovat moznost batch_1_lr_001 s mensim LR, nakopirovat model nech mam aj original
