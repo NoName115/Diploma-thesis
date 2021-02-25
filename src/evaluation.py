@@ -1,3 +1,5 @@
+import os
+import json
 import torch
 import argparse
 from typing import Dict, Tuple, Optional
@@ -201,6 +203,8 @@ if __name__ == "__main__":
                         type=bool, default=False)
     parser.add_argument("--frame-size", "-f", help="Number of frames to take for classification",
                         type=int, default=None)
+    parser.add_argument("--save-metrics", "-s", help="If set to True evaluation results will be saved.",
+                        type=bool, default=False)
 
     args = parser.parse_args()
 
@@ -221,7 +225,7 @@ if __name__ == "__main__":
         )
 
     if args.data_sequences and args.data_actions:
-        evaluate_sequences(
+        res = evaluate_sequences(
             trained_model,
             model_config,
             DataLoader(
@@ -232,3 +236,7 @@ if __name__ == "__main__":
             keep_short_memory=args.short_memory,
             frame_size=args.frame_size
         )
+        if args.save_metrics:
+            with open(os.path.join(args.model, f"metrics_size_{args.frame_size}-{args.short_memory}.json"), 'w') as mf:
+                json.dump(res, mf)
+                mf.write('\n')
