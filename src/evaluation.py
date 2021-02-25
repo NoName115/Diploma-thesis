@@ -237,6 +237,6 @@ if __name__ == "__main__":
             frame_size=args.frame_size
         )
         if args.save_metrics:
-            with open(os.path.join(args.model, f"metrics_size_{args.frame_size}-{args.short_memory}.json"), 'w') as mf:
+            with open(os.path.join(args.model, f"metrics_{args.frame_size}-{args.short_memory}.json"), 'w') as mf:
                 json.dump(res, mf)
                 mf.write('\n')
