@@ -20,14 +20,14 @@
 | cross-view    | 1          | 0.0005     | True   | 200    |  0.038  |  ~75 %   | 0.056  | True        |
 | cross-subject | 20         | 0.001      | True   | 200    |  0.060  |  ~40 %   | ~0     | True        |
 | cross-subject | 1          | 0.0001     | True   | 200    |  0.016  |  ~82 %   | 0.08   | True        |
+| cross-view    | 20         | 0.001      | True   | 200    | 0.1105  |   ~0 %   | 0      | False       |
+| cross-view    | 1          | 0.0001     | True   | 200    | 0.1102  |   ~0 %   | 0      | False       |
+| cross-subject | 1          | 0.00005    | True   | 200    | 0.012   |  ~83 %   | ~0.058 | True        |
 
 ### TODO
 
 | Model type    | Batch-size | Learn-rate |Shuffle | epochs | Loss    | Accuracy | AP     | is_training |
 | ------------- |:----------:|:----------:|:------ |:------:|:-------:|:--------:|:------:|:----------- |
-| cross-view    | 20         | 0.001      | True   | 200    |         |   xx %   | x      |             |
-| cross-view    | 1          | 0.0001     | True   | 200    |         |   xx %   | x      |             |
-| cross-subject | 1          | 0.00005    | True   | 200    |         |   xx %   | x      |             |
 | ------------- | ---------- | ---------- | ------ | ------ | ------- | -------- | ------ | ----------- |
 | cross-subject | 1          | 0.001/5 + 0.0005      | True   | 200    |         |   xx %   | x      |
 
