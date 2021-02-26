@@ -40,7 +40,9 @@ def process_results(
     threshold_results = defaultdict(lambda : {"correct": 0, "above": 0})
     th_list = [0.1, 0.3, 0.5, 0.7, 0.9]
 
-    for seq, values in input_results.items():
+    eval_logger = get_logger()
+    for i, (seq, values) in enumerate(input_results.items(), 1):
+        eval_logger.info(f"-> Sequence: {seq} [{i}/{len(input_results)}]")
         for i in range(values[SEQ_LENGTH]):
             predict = values[PREDICTION][i]
             ground_truth = values[GROUND_TRUTH][i]
@@ -107,6 +109,7 @@ def evaluate_sequence(
     current_frame_size = 1 if not frame_size else frame_size
     with torch.no_grad():
         for i, (sequence, _, seq_id) in enumerate(sequence_loader, 1):
+            eval_logger.info(f"-> Sequence: {seq_id[0]} [{i}/{len(sequence_loader)}] frames {len(sequence[0])}")
             # restart short-memory after every sequence
             if keep_short_memory:
                 trained_model.initialize_short_memory(batch_size=1)
