@@ -71,3 +71,64 @@ def get_logger() -> logging.Logger:
 
 def get_device() -> torch.device:
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+class IterFrame:
+
+    def __init__(
+        self,
+        one_sequence,
+        batch_size: int
+    ):
+        self.sequence = one_sequence
+        self.bs = batch_size
+        self.iter_seq = iter(self.sequence)
+        self.number_of_steps = len(self.sequence) // self.bs
+        if len(self.sequence) % self.bs != 0:
+            self.number_of_steps += 1
+
+        print(self.number_of_steps)
+        print(len(self.sequence))
+
+    @property
+    def sequence_length(self) -> int:
+        return len(self.sequence)
+
+    def __iter__(self):
+        for i in range(self.number_of_steps):
+            tensor_list = []
+            for _ in range(self.bs):
+                try:
+                    tensor_list.append(next(self.iter_seq))
+                except StopIteration:
+                    break
+
+            yield torch.stack(tensor_list, 0)
+
+    def __len__(self) -> int:
+        return self.number_of_steps
+
+
+class JunkSequence:
+
+    def __init__(
+        self,
+        one_sequence,
+        size_of_junk: int
+    ):
+        self.sequence = one_sequence
+        self.size_of_junk = size_of_junk
+        assert self.sequence.size(0) == 1, "Only batch == 1 is available"
+        self.number_of_steps = self.sequence.size(1) // size_of_junk
+        if self.sequence.size(1) % size_of_junk != 0:
+            self.number_of_steps += 1
+
+    def __iter__(self):
+        split = self.sequence.squeeze().split(self.size_of_junk)
+        for i in range(self.number_of_steps):
+            junk_size = split[i].size()
+            yield split[i].view(1, junk_size[0], junk_size[1], junk_size[2])
+
+    def __len__(self):
+        return self.number_of_steps
+

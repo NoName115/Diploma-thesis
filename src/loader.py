@@ -223,6 +223,7 @@ class ActionDatasetList(Dataset):
         for i, data_tuple in enumerate(ad_iter, 1):
             if i % 500 == 0:
                 self._logger.info(f"Loading actions: {i}/{len(ad_iter)}")
+                #break
             results.append(data_tuple)
         return results
 

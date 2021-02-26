@@ -8,9 +8,8 @@ from torch.utils.data import DataLoader
 from collections import defaultdict
 
 from src.model import BiRNN
-from src.common import get_device, logger_manager, get_logger
+from src.common import get_device, logger_manager, get_logger, IterFrame
 from src.loader import load_model, ActionDatasetIterative, SequenceDataset
-from src.evaluation import IterFrame
 
 GROUND_TRUTH = "ground-truth"
 PREDICTION = "prediction"

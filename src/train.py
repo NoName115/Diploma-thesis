@@ -13,7 +13,7 @@ from src import evaluation, constants
 from src.loader import ActionDatasetIterative, SequenceDataset, load_config_file, load_model,\
     create_model, collate_seq, ActionDatasetList
 from src.model import save_model, BiRNN
-from src.common import get_device, DATETIME_FORMAT, logger_manager
+from src.common import get_device, DATETIME_FORMAT, logger_manager, JunkSequence
 
 
 def train(
@@ -88,7 +88,7 @@ def train(
         #ActionDatasetIterative(action_file, meta_file, train_mode=True),
         model_config["train"]['batch_size'],
         collate_fn=collate_seq,
-        shuffle=True
+        shuffle=False
     )
     action_loader = DataLoader(
         ActionDatasetIterative(action_file, meta_file, train_mode=False),
@@ -103,6 +103,7 @@ def train(
     lg.info("--" * 15)
     lg.info("-" * 10 + " TRAINING " + "-" * 10)
 
+    size_of_junk = 20
     train_data_length = len(train_loader)
     lg.info(f"Train data length: {train_data_length}")
 
@@ -112,28 +113,35 @@ def train(
         iteration_loss = 0.0
 
         for i, (sequence, label, _) in enumerate(train_loader, 1):
-            sequence = sequence.view(sequence.size(0), sequence.size(1), -1).to(device)
-            label = label.to(device)
+            #print(f"S: {sequence.size()}")
 
-            # forward pass
-            output = model.forward(sequence)
+            # split sequence into smaller junks
+            junk_iterator = JunkSequence(sequence, size_of_junk=size_of_junk)
+            for j, seq_junk in enumerate(junk_iterator, 1):
+                seq_junk = seq_junk.view(seq_junk.size(0), seq_junk.size(1), -1).to(device)
+                label = label.to(device)
 
-            # loss calculation
-            try:
-                loss = criterion(output, label)
-                epoch_loss += loss.item()
-                iteration_loss += loss.item()
-            except Exception as e:
-                lg.error(e)
-                lg.error(f"O: {output.size()}")
-                lg.error(f"L: {label.size()}")
-                lg.error("Skipping this sequence -- error occurred")
-                continue
+                #print(f"J[{j}]: {seq_junk.size()}")
 
-            # backward pass
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                # forward pass
+                output = model.forward(seq_junk)
+
+                # loss calculation
+                try:
+                    loss = criterion(output, label)
+                    epoch_loss += loss.item() / len(junk_iterator)
+                    iteration_loss += loss.item() / len(junk_iterator)
+                except Exception as e:
+                    lg.error(e)
+                    lg.error(f"O: {output.size()}")
+                    lg.error(f"L: {label.size()}")
+                    lg.error("Skipping this sequence -- error occurred")
+                    continue
+
+                # backward pass
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
             # Training info
             if i % model_config["train"]["report_step"] == 0:

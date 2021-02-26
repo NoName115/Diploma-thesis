@@ -7,40 +7,7 @@ from torch.utils.data import DataLoader
 
 from src.model import BiRNN
 from src.loader import load_model, ActionDatasetIterative, SequenceDataset
-from src.common import get_device, get_logger, logger_manager
-
-
-class IterFrame:
-
-    def __init__(
-        self,
-        one_sequence,
-        batch_size: int
-    ):
-        self.sequence = one_sequence
-        self.bs = batch_size
-        self.iter_seq = iter(self.sequence)
-        self.number_of_steps = len(self.sequence) // self.bs
-        if len(self.sequence) % self.bs != 0:
-            self.number_of_steps += 1
-
-    @property
-    def sequence_length(self) -> int:
-        return len(self.sequence)
-
-    def __iter__(self):
-        for i in range(self.number_of_steps):
-            tensor_list = []
-            for _ in range(self.bs):
-                try:
-                    tensor_list.append(next(self.iter_seq))
-                except StopIteration:
-                    break
-
-            yield torch.stack(tensor_list, 0)
-
-    def __len__(self) -> int:
-        return self.number_of_steps
+from src.common import get_device, get_logger, logger_manager, IterFrame
 
 
 def evaluate_sequences(
