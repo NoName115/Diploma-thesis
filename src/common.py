@@ -2,6 +2,7 @@ import os
 import sys
 import torch
 import logging
+from typing import Optional
 from datetime import datetime
 
 LOG_FORMATTER = logging.Formatter("%(asctime)s | %(levelname)5s | %(message)s")
@@ -113,22 +114,31 @@ class JunkSequence:
 
     def __init__(
         self,
-        one_sequence,
-        size_of_junk: int
+        input_sequence,
+        size_of_junk: Optional[int] = None,
+        step_size: Optional[int] = None
     ):
-        self.sequence = one_sequence
-        self.size_of_junk = size_of_junk
+        self.sequence = input_sequence
+        self.size_of_junk = size_of_junk if size_of_junk else self.sequence.size(1) + 1
+        # no overlap if step_size is None
+        self.step_size = step_size if step_size else self.size_of_junk
         assert self.sequence.size(0) == 1, "Only batch == 1 is available"
-        self.number_of_steps = self.sequence.size(1) // size_of_junk
-        if self.sequence.size(1) % size_of_junk != 0:
+        assert self.step_size <= self.size_of_junk, "Step is bigger than size of the junk"
+
+        self.number_of_steps = self.sequence.size(1) // self.step_size
+        if self.sequence.size(1) % self.step_size != 0:
             self.number_of_steps += 1
 
     def __iter__(self):
-        split = self.sequence.squeeze().split(self.size_of_junk)
-        for i in range(self.number_of_steps):
-            junk_size = split[i].size()
-            yield split[i].view(1, junk_size[0], junk_size[1], junk_size[2])
+        start_index = 0
+        end_index = self.size_of_junk
+        while True:
+            yield self.sequence[:, start_index: end_index]
+            if end_index > self.sequence.size(1):
+                break
+
+            start_index += self.step_size
+            end_index = start_index + self.size_of_junk
 
     def __len__(self):
         return self.number_of_steps
-

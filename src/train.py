@@ -103,7 +103,8 @@ def train(
     lg.info("--" * 15)
     lg.info("-" * 10 + " TRAINING " + "-" * 10)
 
-    size_of_junk = 20
+    size_of_junk = model_config.get('junk_size', None)
+    junk_step = model_config.get('junk_step', None)
     train_data_length = len(train_loader)
     lg.info(f"Train data length: {train_data_length}")
 
@@ -116,7 +117,7 @@ def train(
             #print(f"S: {sequence.size()}")
 
             # split sequence into smaller junks
-            junk_iterator = JunkSequence(sequence, size_of_junk=size_of_junk)
+            junk_iterator = JunkSequence(sequence, size_of_junk=size_of_junk, step_size=junk_step)
             for j, seq_junk in enumerate(junk_iterator, 1):
                 seq_junk = seq_junk.view(seq_junk.size(0), seq_junk.size(1), -1).to(device)
                 label = label.to(device)
