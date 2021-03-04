@@ -134,7 +134,7 @@ class JunkSequence:
         end_index = self.size_of_junk
         while True:
             yield self.sequence[:, start_index: end_index]
-            if end_index > self.sequence.size(1):
+            if end_index >= self.sequence.size(1):
                 break
 
             start_index += self.step_size
