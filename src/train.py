@@ -88,7 +88,7 @@ def train(
         #ActionDatasetIterative(action_file, meta_file, train_mode=True),
         model_config["train"]['batch_size'],
         collate_fn=collate_seq,
-        shuffle=False
+        shuffle=True
     )
     action_loader = DataLoader(
         ActionDatasetIterative(action_file, meta_file, train_mode=False),
@@ -103,10 +103,10 @@ def train(
     lg.info("--" * 15)
     lg.info("-" * 10 + " TRAINING " + "-" * 10)
 
-    size_of_junk = model_config.get('junk_size', None)
-    junk_step = model_config.get('junk_step', None)
+    size_of_junk = model_config['train'].get('junk_size', None)
+    junk_step = model_config['train'].get('junk_step', None)
     train_data_length = len(train_loader)
-    lg.info(f"Train data length: {train_data_length}")
+    lg.info(f"Train data length: {train_data_length}, Junk size: {size_of_junk}, Junk step: {junk_step}")
 
     for epoch in range(start_epoch + 1, end_epoch + 1):
         s_time = time.time()
