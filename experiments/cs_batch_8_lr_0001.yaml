@@ -1,0 +1,18 @@
+model:
+  input_size: 75
+  hidden_size: 512
+  embedding_input_size: 64
+  model_name: "cross_subject-batch_8_lr_0001_rs"
+
+train:
+  learning_rate: 0.0001
+  l2_weight_decay: 0.0001
+  batch_size: 8
+  save_step: 10  # save model every Nth epoch
+  evaluation_step: 5  # run evaluation of model every Nth epoch
+  report_step: 50  # print report from training every Nth iteration
+
+evaluation:
+  threshold_steps: 10
+  report_step: 100
+  frame_size: 1
