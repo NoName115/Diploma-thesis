@@ -88,9 +88,6 @@ class IterFrame:
         if len(self.sequence) % self.bs != 0:
             self.number_of_steps += 1
 
-        print(self.number_of_steps)
-        print(len(self.sequence))
-
     @property
     def sequence_length(self) -> int:
         return len(self.sequence)
