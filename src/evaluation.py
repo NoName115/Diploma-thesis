@@ -1,23 +1,42 @@
 import os
-import json
 import torch
 import argparse
-from typing import Dict, Tuple, Optional
+import pickle
+import datetime
+import numpy as np
+
+from typing import Dict, Optional
+from collections import defaultdict
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+
+from sklearn.preprocessing import label_binarize
+from sklearn.metrics import precision_recall_fscore_support, average_precision_score
 
 from src.model import BiRNN
+from src.common import get_device, logger_manager, get_logger, IterFrame, DATETIME_FORMAT
 from src.loader import load_model, ActionDatasetIterative, SequenceDataset
-from src.common import get_device, get_logger, logger_manager, IterFrame
+
+GROUND_TRUTH = "ground-truth"
+PREDICTION = "prediction"
+SEQ_LENGTH = "seq-length"
 
 
-def evaluate_sequences(
+def default_value():
+    return {
+        GROUND_TRUTH: [],
+        PREDICTION: [],
+        SEQ_LENGTH: 0
+    }
+
+
+def evaluate_sequence(
     trained_model: BiRNN,
-    model_config: Dict,
     sequence_loader: DataLoader,
     action_dataset: ActionDatasetIterative,
     keep_short_memory: bool,
-    frame_size: Optional[int] = None,
-) -> Dict:
+    frame_size: Optional[int] = None
+) -> dict:
     eval_logger = get_logger()
     eval_logger.info("-" * 6 + " SEQUENCE EVALUATION " + "-" * 6)
 
@@ -27,183 +46,283 @@ def evaluate_sequences(
         trained_model.enable_keep_short_memory()
     action_dataset.initialize_action_info()
 
-    with torch.no_grad():
-        eval_dict = {
-            "correct": 0,
-            "above": 0
-        }
-        thresholds = [(
-            round((1 / model_config['evaluation']['threshold_steps']) * (i + 1), 4),
-            eval_dict.copy()
-        ) for i in range(model_config['evaluation']['threshold_steps'])]
-        current_frame_size = model_config['evaluation']['frame_size'] if not frame_size else frame_size
+    predictions = defaultdict(default_value)
 
-        total_frames = 0
+    current_frame_size = 1 if not frame_size else frame_size
+    with torch.no_grad():
         for i, (sequence, _, seq_id) in enumerate(sequence_loader, 1):
             eval_logger.info(f"-> Sequence: {seq_id[0]} [{i}/{len(sequence_loader)}] frames {len(sequence[0])}")
+            # restart short-memory after every sequence
             if keep_short_memory:
-                trained_model.initialize_short_memory(batch_size=1)  # restart short_memory for a new sequence
+                trained_model.initialize_short_memory(batch_size=1)
 
             frame_iter = IterFrame(
-                sequence[0],  # [0] as we are processing batch=1
+                sequence[0],
                 current_frame_size
             )
-
             for j, frame in enumerate(frame_iter, 1):
+                if j % (300 // current_frame_size) == 0:
+                    eval_logger.info(f"[{seq_id[0]}] Processing... {j}/{len(frame_iter)}")
+
                 number_of_frames = frame.size(0)
 
-                torch_frame = frame.view(1, number_of_frames, -1).to(device)  # type: ignore
+                torch_frame = frame.view(1, number_of_frames, -1).to(device)
                 outputs = trained_model(torch_frame)
-
                 assert outputs.size() == (1, 43)
 
-                # Only valid frames
                 start_frame_idx = (j - 1) * current_frame_size + 1
-                res = action_dataset.get_labels_by_sequence(
+                seq_action = action_dataset.get_labels_by_sequence(
                     sequence_name=seq_id[0],
                     seq_start_idx=start_frame_idx,
                     seq_length=current_frame_size
                 )
-                if not res:
+
+                if not seq_action:
                     continue
-                else:
-                    # index start from 1, to get length --> end_idx - start_idx + 1
-                    total_frames += sum((ei - si + 1) for si, ei, _ in res)
 
-                for th, result_dict in thresholds:
-                    # whole batch is classified into several categories
-                    result_dict["above"] += (outputs.data > th).sum().item() * number_of_frames
+                for s_idx, e_idx, label in seq_action:
+                    # item[0] - start-index
+                    # item[1] - end-index
+                    # item[2] - label
+                    total_frames = (e_idx - s_idx + 1)
+                    predictions[seq_id[0]][GROUND_TRUTH] += [label] * total_frames
+                    predictions[seq_id[0]][PREDICTION] += [outputs.data.cpu().numpy()] * total_frames
+                    predictions[seq_id[0]][SEQ_LENGTH] += total_frames
 
-                    for _, label_idx in zip(*torch.where(outputs.data > th)):
-                        # get labels into which the batch is classified
-                        for s_idx, e_idx, target_label in res:
-                            # check whole batch of frames if they goes into correct category
-                            if label_idx == target_label:
-                                result_dict["correct"] += (e_idx - s_idx) + 1
+            break
 
-                if j % model_config['evaluation']['report_step'] == 0:
-                    eval_logger.info(f"\tProcessed steps: {j}/{len(frame_iter)}")
+    return predictions
 
-                #eval_logger.info(f"{torch.argmax(outputs.data).item()} - {round(torch.max(outputs.data).item(), 4)}")
 
-    # Calculate final statistics
-    result_dict = {
-        "thresholds": {},
-        "AP": 0.0,
-        "total_frames": total_frames
+def get_sequence_statistics(res_predictions: Dict) -> dict:
+    eval_logger = get_logger()
+
+    y_cont = []
+    x_cont = []
+    for _, values in res_predictions.items():
+        y_cont += values[GROUND_TRUTH]
+        x_cont += [t[0] for t in values[PREDICTION]]
+
+    y_cont = np.array(y_cont)
+    x_cont = np.array(x_cont)
+
+    # ground-truth binarization
+    y_bin = label_binarize(y_cont, classes=list(range(0, 43)))
+
+    results = {
+        'thresholds': {},
+        'macro-AP': 0.0,
+        'micro-AP': 0.0
     }
+    # calculate Precision, Recall, F1 Score
+    for t in np.arange(0.1, 1.0, 0.1):
+        rt = round(t, 1)
+        x_bin = np.where(x_cont > rt, 1, 0)
+        micro_metrics = precision_recall_fscore_support(
+            y_bin,
+            x_bin,
+            average='micro',
+            zero_division=0
+        )
+        macro_metrics = precision_recall_fscore_support(
+            y_bin,
+            x_bin,
+            average='macro',
+            zero_division=0
+        )
+        macro_metrics = [round(v, 4) for v in macro_metrics if v is not None]
+        micro_metrics = [round(v, 4) for v in micro_metrics if v is not None]
+        eval_logger.info(
+            "[{:.2f}]".format(rt) +
+            f"\n   micro-P: {round(100 * micro_metrics[0], 4)}%"
+            f"\n   micro-R: {round(100 * micro_metrics[1], 4)}%"
+            f"\n   micro-F1: {round(100 * micro_metrics[2], 4)}%"
+            f"\n   macro-P: {round(100 * macro_metrics[0], 4)}%"
+            f"\n   macro-R: {round(100 * macro_metrics[1], 4)}%"
+            f"\n   macro-F1: {round(100 * macro_metrics[2], 4)}%"
+        )
 
-    ap_score = 0
-    old_recall = 0
-    for th, values in thresholds[:-1]:
-        recall = values["correct"] / total_frames if values["correct"] > 0 else 0
-        precision = values["correct"] / values["above"] if values["above"] > 0 else 0
-        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-
-        ap_score += ((abs(recall - old_recall)) * precision)
-        old_recall = recall
-
-        result_dict["thresholds"][str(th)] = {
-            "recall": recall,
-            "precision": precision,
-            "f1-score": f1_score,
-            "correct": values["correct"],
-            "above": values["above"]
+        results['thresholds'][rt] = {
+            'micro-precision': micro_metrics[0],
+            'micro-recall': micro_metrics[1],
+            'micro-f1_score': micro_metrics[2],
+            'macro-precision': macro_metrics[0],
+            'macro-recall': macro_metrics[1],
+            'macro-f1_score': macro_metrics[2]
         }
 
-        eval_logger.info(
-            "[{:.2f}]".format(th) +
-            f"\n   C: {values['correct']}, T: {total_frames}, A: {values['above']}"
-            f"\n   Precision: {round(100 * precision, 4)}%"
-            f"\n   Recall: {round(100 * recall, 4)}%"
-            f"\n   f1_score: {round(f1_score, 4)}"
+    with np.errstate(invalid='ignore'):
+        micro_ap_score = average_precision_score(
+            y_bin,
+            x_cont,
+            average='micro'
+        )
+        eval_logger.info(f"[micro-AP] {round(micro_ap_score, 4)}")
+        results['micro-AP'] = micro_ap_score
+
+        macro_ap_score = average_precision_score(
+            y_bin,
+            x_cont,
+            average='macro'
+        )
+        eval_logger.info(f"[macro-AP] {round(macro_ap_score, 4)}")
+        results['macro-AP'] = macro_ap_score
+
+    return results
+
+
+def log_sequence_results_into_board(
+    tb_writer: SummaryWriter,
+    results: Dict,
+    epoch: int
+):
+    for th, values in results["thresholds"].items():
+        tb_writer.add_scalar(
+            f"_micro-Precision/{th}",
+            values["micro-precision"],
+            epoch
+        )
+        tb_writer.add_scalar(
+            f"_macro-Precision/{th}",
+            values["macro-precision"],
+            epoch
+        )
+        tb_writer.add_scalar(
+            f"_micro-Recall/{th}",
+            values["micro-recall"],
+            epoch
+        )
+        tb_writer.add_scalar(
+            f"_macro-Recall/{th}",
+            values["macro-recall"],
+            epoch
+        )
+        tb_writer.add_scalar(
+            f"_micro-F1_score/{th}",
+            values["micro-f1_score"],
+            epoch
+        )
+        tb_writer.add_scalar(
+            f"_macro-F1_score/{th}",
+            values["macro-f1_score"],
+            epoch
         )
 
-    result_dict["AP"] = ap_score
-    eval_logger.info(f"[AP] {round(ap_score, 4)}")
-
-    return result_dict
-
-
-def evaluate_actions(
-    trained_model: BiRNN,
-    model_config: Dict,
-    evaluation_loader: DataLoader,
-) -> Tuple[int, int]:
-    eval_logger = get_logger()
-    eval_logger.info("-" * 6 + " ACTION EVALUATION " + "-" * 6)
-
-    device = get_device()
-    trained_model.eval().disable_keep_short_memory()
-
-    with torch.no_grad():
-        correct = 0
-        total = len(evaluation_loader)
-
-        for i, (sequence, labels, _) in enumerate(evaluation_loader, 1):
-            if i % model_config['evaluation']['report_step'] == 0:
-                eval_logger.info(f"\tProcessed: [{i}/{len(evaluation_loader)}]")
-
-            sequence = sequence.view(sequence.size(0), sequence.size(1), -1).to(device)
-            target_label = torch.argmax(labels).item()
-
-            outputs = trained_model(sequence)
-
-            _, predicted_label = torch.max(outputs.data, dim=1)
-            predicted_label = predicted_label.item()  # convert to one integer
-
-            if target_label == predicted_label:
-                correct += 1
-
-        eval_logger.info(f"Accuracy: {round(100 * (correct / total), 4)}% - [{correct}/{total}]")
-
-        return correct, total
+    # AP - score
+    tb_writer.add_scalar(
+        "Detection/micro-AP",
+        results["micro-AP"],
+        epoch
+    )
+    tb_writer.add_scalar(
+        "Detection/macro-AP",
+        results["macro-AP"],
+        epoch
+    )
 
 
-if __name__ == "__main__":
+def save_predictions_as_pickle(pred_to_save: Dict, folder: str, epoch: Optional[int] = None):
+    model_name = str(epoch) if epoch else 'final'
+    file_name = f'predictions_{model_name}_{datetime.datetime.now().strftime(DATETIME_FORMAT)}.p'
+
+    pickle.dump(
+        pred_to_save,
+        open(os.path.join(folder,file_name), 'wb')
+    )
+
+
+class CustomArg:
+
+    def __init__(self):
+        self.meta = None
+        self.model = None
+        self.data_actions = None
+        self.data_sequences = None
+        self.short_memory = True
+        self.frame_size = 1
+
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Script for evaluating trained model")
-    parser.add_argument("--model", "-m", help="Folder with trained model", required=True)
-    parser.add_argument("--meta", "-M", help="Meta data for CS/CV datasets", required=True)
-    parser.add_argument("--data-actions", "-da", help="File with data for action evaluation", required=True)
-    parser.add_argument("--data-sequences", "-ds", help="File with data for sequence evaluation")
-    parser.add_argument("--short-memory", "-sm", help="If set to True model will keep short memory",
-                        type=bool, default=False)
-    parser.add_argument("--frame-size", "-f", help="Number of frames to take for classification",
-                        type=int, default=None)
-    parser.add_argument("--save-metrics", "-s", help="If set to True evaluation results will be saved.",
-                        type=bool, default=False)
-
+    parser.add_argument(
+        "--model", "-m",
+        help="Folder with trained model", required=True
+    )
+    parser.add_argument(
+        "--meta", "-M",
+        help="Meta data for CS/CV datasets", required=True
+    )
+    parser.add_argument(
+        "--data-actions", "-da",
+        help="File with data for action evaluation", required=True
+    )
+    parser.add_argument(
+        "--data-sequences", "-ds",
+        help="File with data for sequence evaluation"
+    )
+    parser.add_argument(
+        "--short-memory", "-sm",
+        help="If set to True model will keep short memory",
+        type=bool, default=False
+    )
+    parser.add_argument(
+        "--frame-size", "-f",
+        help="Number of frames to take for classification",
+        type=int, default=1
+    )
+    parser.add_argument(
+        "--epoch", "-e",
+        help="Define type of model to load by epoch, can be a list",
+        type=int, nargs='+'
+    )
+    parser.add_argument(
+        "--board", "-b",
+        help="Tensor board older to log evaluation results",
+        type=str
+    )
     args = parser.parse_args()
 
-    # initialize evaluation logger
+    # args = CustomArg()
+    # work_dir = os.path.dirname(os.path.dirname(__file__))
+    #
+    # args.model = os.path.join(work_dir, "output_models", "cross_subject-batch_1_lr_0001_rs_2020_12_26-12_50_19")
+    # args.data_sequences = os.path.join(work_dir, "data", "sequences-single-subject-all-POS.data")
+    # args.meta = os.path.join(work_dir, "data", "meta", "cross-subject.txt")
+    # args.data_actions = os.path.join(work_dir, "data", "actions-single-subject-all-POS.data")
+
     logger_manager.init_eval_logger(args.model)
 
-    # load model & configuration
-    trained_model, _, model_config = load_model(args.model)
+    epochs = args.epoch
+    if not epochs:
+        epochs = [None]
 
-    if args.data_actions and not args.data_sequences:
-        evaluate_actions(
-            trained_model,
-            model_config,
-            DataLoader(
-                ActionDatasetIterative(args.data_actions, args.meta, train_mode=False),
-                batch_size=1
-            )
+    for input_epoch in epochs:
+        trained_model, model_epoch, model_config = load_model(
+            args.model,
+            input_epoch
         )
 
-    if args.data_sequences and args.data_actions:
-        res = evaluate_sequences(
-            trained_model,
-            model_config,
-            DataLoader(
+        predictions = evaluate_sequence(
+            trained_model=trained_model,
+            sequence_loader=DataLoader(
                 SequenceDataset(args.data_sequences, args.meta, train_mode=False),
                 batch_size=1
             ),
-            ActionDatasetIterative(args.data_actions, args.meta, train_mode=False),
+            action_dataset=ActionDatasetIterative(args.data_actions, args.meta, train_mode=False),
             keep_short_memory=args.short_memory,
             frame_size=args.frame_size
         )
-        if args.save_metrics:
-            with open(os.path.join(args.model, f"metrics_{args.frame_size}-{args.short_memory}.json"), 'w') as mf:
-                json.dump(res, mf)
-                mf.write('\n')
+        save_predictions_as_pickle(predictions, args.model)
+        results = get_sequence_statistics(predictions)
+
+        if args.board:
+            assert os.path.exists(args.board), "TensorBaord folder does not exist"
+            tb_writer = SummaryWriter(log_dir=args.board)
+            log_sequence_results_into_board(
+                tb_writer=tb_writer,
+                results=results,
+                epoch=model_epoch
+            )
+            tb_writer.close()
+        else:
+            print("-> Skipping logging into tensor-board, one of arguments was not specified")

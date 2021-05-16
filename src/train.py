@@ -9,7 +9,7 @@ from datetime import datetime
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from src import evaluation, constants
+from src import evaluation
 from src.loader import ActionDatasetIterative, SequenceDataset, load_config_file, load_model,\
     create_model, collate_seq, ActionDatasetList
 from src.model import save_model, BiRNN
@@ -211,44 +211,26 @@ def sequence_evaluation(
     trained_model: BiRNN,
     epoch: int,
 ):
-    res = evaluation.evaluate_sequences(
-        trained_model,
-        configuration,
-        evaluation_loader,
-        action_dataset,
+    predictions = evaluation.evaluate_sequence(
+        trained_model=trained_model,
+        sequence_loader=evaluation_loader,
+        action_dataset=action_dataset,
         keep_short_memory=True,
+        frame_size=configuration.get('evaluation', {}).get('frame_size', None)
     )
-
-    for th, values in res["thresholds"].items():
-        tb_writer.add_scalar(
-            f"_Precision/{th}",
-            values["precision"],
-            epoch
-        )
-        tb_writer.add_scalar(
-            f"_Recall/{th}",
-            values["recall"],
-            epoch
-        )
-        tb_writer.add_scalar(
-            f"_F1-score/{th}",
-            values["f1-score"],
-            epoch
-        )
-
-    # AP - score
-    tb_writer.add_scalar(
-        f"Detection/AP",
-        res["AP"],
+    res = evaluation.get_sequence_statistics(
+        predictions
+    )
+    evaluation.log_sequence_results_into_board(
+        tb_writer,
+        res,
         epoch
     )
-
-    res["epoch"] = epoch
-
-    # Save statistics into metrics.json file
-    with open(os.path.join(tb_writer.get_logdir(), constants.METRICS_FILE_NAME), 'a') as mf:
-        json.dump(res, mf)
-        mf.write('\n')
+    evaluation.save_predictions_as_pickle(
+        pred_to_save=predictions,
+        folder=tb_writer.log_dir,
+        epoch=epoch
+    )
 
 
 def action_evaluation(

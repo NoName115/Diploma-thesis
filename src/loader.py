@@ -3,7 +3,7 @@ import re
 import torch
 import yaml
 import numpy as np
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from torch.utils.data import IterableDataset, Dataset
 from torch._six import container_abcs, string_classes, int_classes
 
@@ -267,12 +267,23 @@ def create_model(model_config: Dict) -> BiRNN:
     ).to(device)
 
 
-def load_model(model_folder: str) -> Tuple[BiRNN, int, Dict]:
-    get_logger().info(f"Loading model from {model_folder}")
+def load_model(
+    model_folder: str,
+    epoch: Optional[int] = None
+) -> Tuple[BiRNN, int, Dict]:
+    logger = get_logger()
+    logger.info(f"Loading model from {model_folder}")
+
 
     with open(os.path.join(model_folder, CHECKPOINT_FILE_NAME), "r") as lf:
         last_model_file, model_epoch = lf.read().split('\n')
     config_file = load_config_file(os.path.join(model_folder, CONFIG_FILE_NAME))
+
+    if epoch:
+        last_model_file = f'model_{epoch}.pth'
+        model_epoch = epoch
+
+    logger.info(f"Model {last_model_file} with epoch {model_epoch}")
 
     pytorch_model = create_model(config_file)
     pytorch_model.load_state_dict(
