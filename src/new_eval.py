@@ -2,6 +2,8 @@ import os
 import json
 import torch
 import argparse
+import pickle
+import datetime
 
 from typing import Dict, Optional, List, Tuple
 from torch.utils.data import DataLoader
@@ -103,7 +105,7 @@ def evaluate_sequence(
         trained_model.enable_keep_short_memory()
     action_dataset.initialize_action_info()
 
-    results = defaultdict(default_value)
+    predictions = defaultdict(default_value)
 
     current_frame_size = 1 if not frame_size else frame_size
     with torch.no_grad():
@@ -144,20 +146,36 @@ def evaluate_sequence(
                     # item[1] - end-index
                     # item[2] - label
                     total_frames = (e_idx - s_idx + 1)
-                    results[seq_id[0]][GROUND_TRUTH] += [label] * total_frames
-                    results[seq_id[0]][PREDICTION] += [outputs.data] * total_frames
-                    results[seq_id[0]][SEQ_LENGTH] += total_frames
+                    predictions[seq_id[0]][GROUND_TRUTH] += [label] * total_frames
+                    predictions[seq_id[0]][PREDICTION] += [outputs.data] * total_frames
+                    predictions[seq_id[0]][SEQ_LENGTH] += total_frames
 
-    #pprint_results(input_results=results)
-    eval_logger.info("Processing results...")
-    processed_res, th_list = process_results(input_results=results)
-    eval_logger.info(json.dumps(processed_res, indent=4, sort_keys=True))
+            break
 
-    eval_logger.info('\n')
-    eval_logger.info("Calculating final statistics...")
-    statistics = calculate_statistics(processed_res, th_list, results)
-    eval_logger.info(json.dumps(statistics, indent=4, sort_keys=True))
 
+    pprint_results(input_results=predictions)
+    pickle.dump(predictions, open(f'predictions_{datetime.datetime.now().isoformat()}.p', 'wb'))
+
+    # eval_logger.info("Processing results...")
+    # processed_res, th_list = process_results(input_results=results)
+    # eval_logger.info(json.dumps(processed_res, indent=4, sort_keys=True))
+    #
+    # eval_logger.info('\n')
+    # eval_logger.info("Calculating final statistics...")
+    # statistics = calculate_statistics(processed_res, th_list, results)
+    # eval_logger.info(json.dumps(statistics, indent=4, sort_keys=True))
+
+
+
+class CustomArg:
+
+    def __init__(self):
+        self.meta = None
+        self.model = None
+        self.data_actions = None
+        self.data_sequences = None
+        self.short_memory = True
+        self.frame_size = 1
 
 
 if __name__ == '__main__':
@@ -174,13 +192,14 @@ if __name__ == '__main__':
                         type=bool, default=False)
     args = parser.parse_args()
 
+    # args = CustomArg()
     # work_dir = os.path.dirname(os.path.dirname(__file__))
     #
-    # model_path = os.path.join(work_dir, "output_models", "cross_subject-batch_1_lr_0001_rs_2020_12_26-12_50_19")
-    # data_sequences = os.path.join(work_dir, "data", "sequences-single-subject-all-POS.data")
-    # meta_data = os.path.join(work_dir, "data", "meta", "cross-subject.txt")
-    # data_actions = os.path.join(work_dir, "data", "actions-single-subject-all-POS.data")
-    #
+    # args.model = os.path.join(work_dir, "output_models", "cross_subject-batch_1_lr_0001_rs_2020_12_26-12_50_19")
+    # args.data_sequences = os.path.join(work_dir, "data", "sequences-single-subject-all-POS.data")
+    # args.meta = os.path.join(work_dir, "data", "meta", "cross-subject.txt")
+    # args.data_actions = os.path.join(work_dir, "data", "actions-single-subject-all-POS.data")
+
     logger_manager.init_eval_logger(args.model)
 
     trained_model, _, model_config = load_model(args.model)
