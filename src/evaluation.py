@@ -291,6 +291,9 @@ if __name__ == '__main__':
     # args.data_actions = os.path.join(work_dir, "data", "actions-single-subject-all-POS.data")
 
     logger_manager.init_eval_logger(args.model)
+    tb_writer = None
+    if args.board:
+        tb_writer = SummaryWriter(log_dir=args.board)
 
     epochs = args.epoch
     if not epochs:
@@ -312,17 +315,18 @@ if __name__ == '__main__':
             keep_short_memory=args.short_memory,
             frame_size=args.frame_size
         )
-        save_predictions_as_pickle(predictions, args.model)
+        save_predictions_as_pickle(predictions, args.model, model_epoch)
         results = get_sequence_statistics(predictions)
 
-        if args.board:
+        if args.board and tb_writer:
             assert os.path.exists(args.board), "TensorBaord folder does not exist"
-            tb_writer = SummaryWriter(log_dir=args.board)
             log_sequence_results_into_board(
                 tb_writer=tb_writer,
                 results=results,
                 epoch=model_epoch
             )
-            tb_writer.close()
         else:
             print("-> Skipping logging into tensor-board, one of arguments was not specified")
+
+    if tb_writer:
+        tb_writer.close()
