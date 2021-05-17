@@ -89,7 +89,7 @@ def evaluate_sequence(
                     predictions[seq_id[0]][PREDICTION] += [outputs.data.cpu().numpy()] * total_frames
                     predictions[seq_id[0]][SEQ_LENGTH] += total_frames
 
-            break
+            #break
 
     return predictions
 
