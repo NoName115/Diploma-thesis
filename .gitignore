@@ -1,12 +1,15 @@
 *.idea
-data/
 *.pth
 token.txt
 model.pth
 output_models/
 sandbox/
 !tests/data/
-notebooks/
+
+# data
+*.zip
+*.p
+*.data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
