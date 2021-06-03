@@ -9,7 +9,7 @@ from datetime import datetime
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from src import evaluation
+from src import evaluation, old_evaluation
 from src.loader import ActionDatasetIterative, SequenceDataset, load_config_file, load_model,\
     create_model, collate_seq, ActionDatasetList
 from src.model import save_model, BiRNN
@@ -240,7 +240,7 @@ def action_evaluation(
     trained_model: BiRNN,
     epoch: int,
 ):
-    correct, total = evaluation.evaluate_actions(
+    correct, total = old_evaluation.evaluate_actions(
         trained_model,
         configuration,
         evaluation_loader,

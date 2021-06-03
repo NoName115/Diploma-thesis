@@ -89,8 +89,6 @@ def evaluate_sequence(
                     predictions[seq_id[0]][PREDICTION] += [outputs.data.cpu().numpy()] * total_frames
                     predictions[seq_id[0]][SEQ_LENGTH] += total_frames
 
-            #break
-
     return predictions
 
 
@@ -219,6 +217,34 @@ def log_sequence_results_into_board(
         results["macro-AP"],
         epoch
     )
+
+
+# def evaluate_actions(
+#     trained_model: BiRNN,
+#     action_loader: DataLoader,
+# ) -> dict:
+#     eval_logger = get_logger()
+#     eval_logger.info('-' * 6 + " ACTION EVALUATION " + "-" * 6)
+#
+#     device = get_device()
+#     trained_model.eval().disable_keep_short_memory()
+#
+#     with torch.no_grad():
+#         for i, (sequence, labels, seq_id) in enumerate(action_loader, 1):
+#             eval_logger.info(f"-> Action: {seq_id[0]} [{i}/{len(action_loader)}]")
+#
+#             sequence = sequence.view(sequence.size(0), sequence.size(1), -1).to(device)
+#             target_label = torch.argmax(labels).item()
+#
+#             outputs = trained_model(sequence)
+#             _, predicted_label = torch.max(outputs.data, dim=1)
+#             predicted_label = predicted_label.item()
+#
+#             pass
+#
+#     # TODO - nepotrebujem, to co som pouzival je dostatocne funkcne
+#
+#     return {}
 
 
 def save_predictions_as_pickle(pred_to_save: Dict, folder: str, epoch: Optional[int] = None):
