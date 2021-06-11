@@ -92,7 +92,10 @@ def evaluate_sequence(
     return predictions
 
 
-def get_sequence_statistics(res_predictions: Dict) -> dict:
+def get_sequence_statistics(
+    res_predictions: Dict,
+    th_list = None
+) -> dict:
     eval_logger = get_logger()
 
     y_cont = []
@@ -113,8 +116,11 @@ def get_sequence_statistics(res_predictions: Dict) -> dict:
         'micro-AP': 0.0
     }
     # calculate Precision, Recall, F1 Score
-    for t in np.arange(0.1, 1.0, 0.1):
-        rt = round(t, 1)
+    if th_list is None:
+        th_list = np.arange(0.1, 1.0, 0.1)
+
+    for t in th_list:
+        rt = round(t, 2)
         x_bin = np.where(x_cont > rt, 1, 0)
         micro_metrics = precision_recall_fscore_support(
             y_bin,
