@@ -1,0 +1,18 @@
+model:
+  input_size: 75
+  hidden_size: 256
+  embedding_input_size: 64
+  model_name: "cross_view-hidden_256-batch_1_lr_00005_rs"
+
+train:
+  learning_rate: 0.00005
+  l2_weight_decay: 0.0001
+  batch_size: 1
+  save_step: 10  # save model every Nth epoch
+  evaluation_step: 5  # run evaluation of model every Nth epoch
+  report_step: 500  # print report from training every Nth iteration
+
+evaluation:
+  threshold_steps: 10
+  report_step: 100
+  frame_size: 1
