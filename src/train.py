@@ -78,7 +78,7 @@ def train(
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=model_config["train"]["learning_rate"],
-        weight_decay=model_config["train"]["l2_weight_decay"]
+        weight_decay=model_config["train"].get("l2_weight_decay", 0.0001)
     )
 
     # load training & testing data

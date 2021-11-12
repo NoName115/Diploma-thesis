@@ -1,19 +1,18 @@
-model:
-  input_size: 75
-  hidden_size: 512
-  embedding_input_size: 64
-  include_embedding: false
-  model_name: ""
+model:  # model configuration
+  input_size: 75  # input data size
+  hidden_size: 512  # size of lstm hidden-layer
+  embedding_input_size: 64  # output size of embedding layer
+  include_embedding: false  # if include embedding layer in the model
+  model_name: ""  # name of the model/experiment
 
-train:
+train:  # training phase
   learning_rate: 0.0005
-  l2_weight_decay: 0.0001
   batch_size: 1
   save_step: 10  # save model every Nth epoch
-  evaluation_step: 5  # run evaluation of model every Nth epoch
-  report_step: 500  # print report from training every Nth iteration
+  evaluation_step: 5  # run evaluation every Nth epoch
+  report_step: 500  # print training report every Nth iteration
 
-evaluation:
-  threshold_steps: 10
-  report_step: 25
-  frame_size: 1
+evaluation:  # evaluation phase
+  threshold_steps: 10  # number of thresholds to generate, between 0-1
+  report_step: 25  # print evaluation report every Nth iteration
+  frame_size: 1  # number of frames to classify in detection evaluation
