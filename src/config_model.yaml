@@ -2,6 +2,7 @@ model:
   input_size: 75
   hidden_size: 512
   embedding_input_size: 64
+  include_embedding: false
   model_name: ""
 
 train:

@@ -1,7 +1,7 @@
 import os
 import yaml
 import torch
-from typing import Dict
+from typing import Dict, Optional
 from torch import nn
 
 from src.constants import MODEL_FINAL_FILE_NAME, CHECKPOINT_FILE_NAME, CONFIG_FILE_NAME
@@ -14,7 +14,7 @@ class BiRNN(nn.Module):
         self,
         input_size: int,
         lstm_hidden_size: int,
-        embedding_output_size: int,
+        embedding_output_size: Optional[int],
         num_classes: int
     ):
         super().__init__()
@@ -26,11 +26,17 @@ class BiRNN(nn.Module):
         self.keep_short_memory = False
 
         # Embedding part, from 75 -> 64 size
-        #self.embedding = nn.Linear(input_size, embedding_output_size)
-        #self.relu = nn.ReLU()
+        if embedding_output_size is not None:
+            lstm_input_size = embedding_output_size
+            self.embedding = nn.Linear(input_size, embedding_output_size)
+            self.relu = nn.ReLU()
+        else:
+            lstm_input_size = input_size
+            self.embedding = None
+            self.relu = None
 
         self.lstm = nn.LSTM(
-            input_size,
+            lstm_input_size,
             lstm_hidden_size,
             self.num_layers,
             batch_first=True,
@@ -64,14 +70,17 @@ class BiRNN(nn.Module):
 
     def forward(self, x):
         # embedding
-        #out = self.embedding(x)
-        #out = self.relu(out)
+        if self.embedding is not None:
+            out = self.embedding(x)
+            out = self.relu(out)
+        else:
+            out = x
 
         # bi-LSTM
         if not self.keep_short_memory:
-            self.initialize_short_memory(x.size(0))
+            self.initialize_short_memory(out.size(0))
 
-        out, (hn, cn) = self.lstm(x, (self.h0, self.c0))
+        out, (hn, cn) = self.lstm(out, (self.h0, self.c0))
         if self.keep_short_memory:
             self.h0 = hn
             self.c0 = cn

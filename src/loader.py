@@ -261,7 +261,7 @@ def create_model(model_config: Dict) -> BiRNN:
     return BiRNN(
         input_size=model_config["model"]["input_size"],
         lstm_hidden_size=model_config["model"]["hidden_size"],
-        embedding_output_size=model_config["model"]["embedding_input_size"],
+        embedding_output_size=model_config["model"]["embedding_input_size"] if model_config["model"]["include_embedding"] else None,
         num_classes=len(LABELS)
     ).to(device)
 
