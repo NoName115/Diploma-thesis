@@ -47,7 +47,7 @@ class LoggerManager:
         # log into file
         file_handler = logging.FileHandler(os.path.join(
             log_folder,
-            f"logs_{log_file_postfix}_{datetime.now().strftime(DATETIME_FORMAT)}"
+            f"logs_{log_file_postfix}_{datetime.now().strftime(DATETIME_FORMAT)}.txt"
         ))
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(LOG_FORMATTER)
