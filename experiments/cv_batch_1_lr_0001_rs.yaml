@@ -2,8 +2,8 @@ model:
   input_size: 75
   hidden_size: 512
   embedding_input_size: 64
-  include_embedding: true
-  model_name: "cross_subject-batch_1_lr_0001"
+  include_embedding: false
+  model_name: "cross_view-batch_1_lr_0001_rs"
 
 train:
   learning_rate: 0.0001
