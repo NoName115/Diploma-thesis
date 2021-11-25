@@ -5,8 +5,8 @@ MODEL_FINAL_FILE_NAME = "model_final.pth"
 CHECKPOINT_FILE_NAME = "last_checkpoint"
 METRICS_FILE_NAME = "metrics.json"
 
-NUMBER_OF_JOINTS = os.getenv("JOINTS", 25)
-NUMBER_OF_AXES = os.getenv("AXES", 3)
+NUMBER_OF_JOINTS = int(os.getenv("JOINTS", 25))
+NUMBER_OF_AXES = int(os.getenv("AXES", 3))
 
 LABELS = {
     1: 0,
