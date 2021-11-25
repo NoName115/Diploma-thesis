@@ -1,37 +1,34 @@
-# Notes
+# Diploma Thesis - Action Detection
 
-## Model training
+Source code for my diploma thesis with topic - Action Detection in Human Motion Data using LSTM Networks
 
-### DONE
+## Quick setup
+- Clone this repository to your local machine `$ git clone https://github.com/NoName115/Diploma-thesis.git`
+- Install python dependencies, at least python3.7 64-bit version is required
+  - for running models on CPU - `$ pip install -r requirements-cpu.txt`
+  - for running models on GPU (recommended) - `$ pip install -r requirements-gpu.txt`
+- Select one of two branches `master` or `train-part`
+  - `$ git checkout train-part`
 
-| Model type    | Batch-size | Learn-rate |Shuffle | epochs | Loss    | Accuracy | AP     | is_training |
-| ------------- |:----------:|:----------:|:------ |:------:|:-------:|:--------:|:------:|:----------- |
-| cross-subject | 1          | 0.0005     | False  | 200    |  0.027  |  ~70 %   | ~0     | True        |
-| cross-subject | 1          | 0.0005     | True   | 200    |  0.112  |    0 %   | 0      | False       |
-| cross-subject | 10         | 0.0005     | False  | 200    |  0.112  |    0 %   | 0      | False       |
-| cross-subject | 40         | 0.0005     | False  | 250    |  0.110  |   ~4 %   | 0      | False       |
-| cross-subject | 1          | 0.001      | True   | 200    |  0.046  |  ~65 %   | 0.025  | True        |
-| cross-subject | 1          | 0.01       | True   | 100    |  0.150  |  ~3  %   | ~0     | False       |
-| cross-view    | 1          | 0.0005     | False  | 200    |  0.034  |  ~80 %   | 0.015  | Not-always  |
+## Configuration
+- default configuration file for experiments is located in `src/config_model.yaml`
+- for every experiment it's recommended to create a copy of this file and edit it based on experiment's parameters
 
-| Model type    | Batch-size | Learn-rate |Shuffle | epochs | Loss    | Accuracy | AP     | is_training |
-| ------------- |:----------:|:----------:|:------ |:------:|:-------:|:--------:|:------:|:----------- |
-| cross-subject | 1          | 0.005      | True   | 200    | 0.123   |    0 %   | 0      | False       |
-| cross-subject | 20         | 0.001      | True   | 200    | 0.111   |    0 %   | 0      | False       |
-| cross-view    | 1          | 0.001      | True   | 200    | 0.113   |    0 %   | 0      | False       |
-| cross-view    | 20         | 0.001      | True   | 200    | 0.11    |    0 %   | 0      | False       |
-| cross-view    | 1          | 0.0001     | True   | 200    | 0.11    |    0 %   | 0      | False       |
-| cross-subject | 1          | 0.0001     | True   | 200    | 0.1103  |    0 %   | 0      | False       |
-| cross-view    | 1          | 0.0001     | True   | 200    | 0.1101  |    0 %   | 0      | False       |
-
-#### RS
-
-| Model type    | Batch-size | Learn-rate |Shuffle | epochs | Loss    | Accuracy | AP     | is_training |
-| ------------- |:----------:|:----------:|:------ |:------:|:-------:|:--------:|:------:|:----------- |
-| cross-subject | 1          | 0.0005     | True   | 140    |  0.038  |  ~68 %   | 0.05   | True        |
-| cross-view    | 1          | 0.0005     | True   | 200    |  0.038  |  ~75 %   | 0.056  | True        |
-| cross-subject | 20         | 0.001      | True   | 200    |  0.060  |  ~40 %   | ~0     | True        |
-| cross-subject | 1          | 0.0001     | True   | 200    |  0.016  |  ~82 %   | 0.08   | True        |
-| cross-view    | 20         | 0.001      | True   | 200    |  0.1105 |   ~0 %   | 0      | False       |
-| cross-view    | 1          | 0.0001     | True   | 200    |  0.1102 |   ~0 %   | 0      | False       |
-| cross-subject | 1          | 0.00005    | True   | 200    |  0.012  |  ~83 %   | ~0.058 | True        |
+## Run
+- To see all required arguments for running the experiment, run:
+  - ```shell
+    ~$ PYTHONPATH=. python src/train.py --help
+    ```
+- Here is an example of running an experiment:
+  - ```shell
+    ~$ PYTHONPATH=. python src/train.py \
+    --data-actions data/actions-single-subject-all-POS.data \
+    --data-sequence data/sequences-single-subject-all-POS.data \
+    --meta data/meta/cross-subject.txt --epochs 200 \
+    --config experiments/cs_batch_1_lr_00005_junk_20_10.yaml \
+    --output output_models/
+    ```
+- The whole process of training and evaluation of the model can be seen in real-time using TensorBoard tool:
+  - ```shell
+    ~$ tensorboard --logs "<output folder of the experiment>"
+    ```
