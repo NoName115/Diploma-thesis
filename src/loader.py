@@ -164,7 +164,8 @@ class ActionDatasetIterative(IterableDataset):
                     # convert action into tensor
                     action = np.array(action, dtype=np.float32)
                     action = torch.from_numpy(action)
-                    assert action.size() == (action_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES)
+                    assert action.size() == (action_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES),\
+                        f"action size: {action.size()}, expected ({action_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES})"
 
                     yield action, target, action_info
                 else:
