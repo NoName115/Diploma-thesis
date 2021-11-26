@@ -39,6 +39,8 @@ class SequenceDataset(IterableDataset):
                 # Line2: 4637;mcdr.objects.ObjectMocapPose
                 second_header = next(file_reader)  # skip second line of header
                 seq_length = int(second_header.split(';')[0])
+                if seq_length == 0:
+                    continue
 
                 # skip Sequences with invalid ID
                 if seq_id not in self.valid_sequences:
