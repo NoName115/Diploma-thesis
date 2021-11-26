@@ -33,11 +33,12 @@ class SequenceDataset(IterableDataset):
         for line in file_reader:
             if line.find("#objectKey") != -1:
                 # Line1: #objectKey messif.objects.keys.AbstractObjectKey 0002-L_4637
-                # Line2: 4637;mcdr.objects.ObjectMocapPose
                 seq_info = line.split(" ")[-1].split("_")
                 seq_id = seq_info[0]
-                seq_length = int(seq_info[-1])
-                _ = next(file_reader)  # skip second line of header
+
+                # Line2: 4637;mcdr.objects.ObjectMocapPose
+                second_header = next(file_reader)  # skip second line of header
+                seq_length = int(second_header.split(';')[0])
 
                 # skip Sequences with invalid ID
                 if seq_id not in self.valid_sequences:
@@ -53,7 +54,8 @@ class SequenceDataset(IterableDataset):
 
                 sequence = np.array(sequence, dtype=np.float32)
                 sequence = torch.from_numpy(sequence)
-                assert sequence.size() == (seq_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES)
+                assert sequence.size() == (seq_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES),\
+                    f"action size: {sequence.size()}, expected ({seq_length, NUMBER_OF_JOINTS, NUMBER_OF_AXES})"
                 yield sequence, [], seq_id
 
     def __iter__(self):
